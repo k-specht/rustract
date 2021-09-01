@@ -1,0 +1,19 @@
+[package]
+name = "rusty_backend"
+version = "0.1.0"
+edition = "2018"
+authors = ["Käthe Specht <xpecht@gmail.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-std = { version = "^1.10.0", features = ["attributes"] }
+serde = { version = "^1.0.104", features = ["derive"] }
+serde_json = "^1.0.48"
+native-tls = "^0.2"
+sqlx = { version = "^0.5", features = [ "runtime-async-std-native-tls", "mysql" ] }
+
+[lib]
+name="rusty_backend"
+test = true
+plugin = false
