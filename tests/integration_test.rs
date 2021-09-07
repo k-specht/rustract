@@ -5,7 +5,9 @@
  * Date: 2021-09-01
  */
 
+use rusty_backend::init;
+
 /// Uses the rusty backend library to generate a backend based on an example database.
 fn main() {
-    rusty_backend::init("./example_config.json");
+    init("./example_config.json");
 }
