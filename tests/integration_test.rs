@@ -8,6 +8,7 @@
 use rusty_backend::init;
 
 /// Uses the rusty backend library to generate a backend based on an example database.
+#[test]
 fn main() {
-    init("./example_config.json");
+    init("./tests/example_config.json").expect("Integration test failed.");
 }

@@ -1,0 +1,4 @@
+{
+    "db_path": "./example_database",
+    "db_type": "SQL"
+}
