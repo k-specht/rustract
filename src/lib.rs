@@ -3,16 +3,13 @@
 //! Author: Käthe Specht
 //! Date: 2021-09-01
 pub mod error;
+pub mod db_driver;
+pub mod types;
+use types::Config;
 use error::BackendError;
 use std::fs;
 use std::io::Read;
 
-/// Configuration requirements.
-#[derive(serde::Deserialize, Debug)]
-pub struct Config {
-    db_path: String,
-    db_type: String,
-}
 
 /// Initializes a local library based on the input settings.
 pub fn init(json_path: &str) -> Result<String, BackendError> {
@@ -20,7 +17,7 @@ pub fn init(json_path: &str) -> Result<String, BackendError> {
 
     // Attempts to read the database type in order to parse it properly
     match config.db_type.as_str() {
-        "SQL" => init_sql(&config.db_path),
+        "SQL" => init_sql(config),
         _ => return Err(BackendError {
             message: format!("{} is not a valid database type.", config.db_type.as_str()),
         }),
@@ -30,8 +27,8 @@ pub fn init(json_path: &str) -> Result<String, BackendError> {
 }
 
 /// Initializes the SQL database interface.
-fn init_sql(db_path: &str) {
-    print!("Stub, {}", db_path);
+fn init_sql(config: Config) {
+    db_driver::init(config);
 }
 
 /// Gets the config settings from the specified configuration file.
@@ -68,6 +65,7 @@ mod test {
         let config = get_config("./example.json").unwrap();
         assert_eq!(config.db_path, "./example_database");
         assert_eq!(config.db_type, "SQL");
+        delete_config();
     }
 
     /// Creates an example config file for testing purposes.
@@ -78,5 +76,10 @@ mod test {
             .expect("Failed to create config file.");
         std::fs::write("./example.json", example_config)
             .expect("Failed to write to config file.");
+    }
+
+    /// Deletes the example config after testing completes.
+    fn delete_config() {
+        std::fs::remove_file("./example_config.json").expect("Failed to delete file.");
     }
 }
