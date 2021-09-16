@@ -10,7 +10,6 @@ use error::BackendError;
 use std::fs;
 use std::io::Read;
 
-
 /// Initializes a local library based on the input settings.
 pub fn init(json_path: &str) -> Result<String, BackendError> {
     let config = get_config(json_path)?;
