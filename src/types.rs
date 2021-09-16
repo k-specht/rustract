@@ -23,18 +23,25 @@ pub trait HasLength {
     fn length(&self) -> isize;
 }
 
+impl<T> Data<T> {
+    /// Constructs a new Data struct based on the parameters.
+    fn new(contents: T, size: isize, bound: bool, regex: String) -> Data<T> {
+        Data { contents, size, bound, regex }
+    }
+}
+
 /// Adds functions for the Data struct.
 impl<T> Data<T> where T: HasLength {
-    /// Tests the data to ensure safety when modifying the database.
-    fn test_length(&self) -> Result<String, BackendError> {
+    /// Tests the length for a database entry and returns the contents if it passes.
+    fn test_length(&self) -> Result<&T, BackendError> {
         // Tests length using trait
-        if self.contents.length() >= self.size {
+        if self.contents.length() > self.size {
             return Err(BackendError{
                 message: "Data contents are over the size limit for this type.".to_string(),
             });
         }
 
-        Ok("Type validated.".to_string())
+        Ok(&self.contents)
     }
 }
 
@@ -125,5 +132,88 @@ impl HasLength for u16 {
 impl HasLength for u8 {
     fn length(&self) -> isize {
         digits(self).try_into().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn db_data_test() {
+        let dbdata: Data<u32> = Data::new(89, 2, false, String::new());
+        match dbdata.test_length() {
+            Ok(contents) => {
+                print!("Contents: {}.", contents);
+            }
+            Err(error) => {
+                panic!("{}", error);
+            },
+        };
+    }
+
+    #[test]
+    fn db_regex_test() {
+        let good_email = "test_person89@test.com";
+        let bad_email = "bad_email@test";
+        let regex_str = "(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])";
+        let regex = Regex::new(regex_str).unwrap();
+        assert!(regex.is_match(good_email));
+        assert!(!regex.is_match(bad_email));
+
+        let good_data = Data::new(
+            String::from(good_email), 
+            255, 
+            true, 
+            String::from(regex_str)
+        );
+        let bad_data = Data::new(
+            String::from(bad_email), 
+            255, 
+            true, 
+            String::from(regex_str)
+        );
+        assert_eq!(good_email, good_data.test_regex().unwrap());
+        // assert_eq!(bad_email, bad_data.test_regex());
+    }
+
+    #[test]
+    fn db_type_test() {
+        todo!();
+    }
+
+    #[test]
+    fn db_size_test() {
+        let dbdata: Data<u32> = Data::new(
+            100, 
+            2, 
+            false, 
+            String::new()
+        );
+        let dbdatastring = Data::new(
+            String::from("Kat"), 
+            2, 
+            false, 
+            String::new()
+        );
+
+        // Test passes if entering a number over the digit limit fails
+        match dbdata.test_length() {
+            Ok(contents) => {
+                panic!("Size check failed: size: {}, contents: {}.", dbdata.size, contents);
+            }
+            Err(error) => {
+                print!("Size check passed!: {}", error);
+            },
+        };
+        // Test passes if entering a String over the character limit fails
+        match dbdatastring.test_length() {
+            Ok(contents) => {
+                panic!("Size check failed: size: {}, contents: {}.", dbdatastring.size, contents);
+            }
+            Err(error) => {
+                print!("Size check passed!: {}", error);
+            },
+        };
     }
 }
