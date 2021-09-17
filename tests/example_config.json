@@ -1,4 +1,5 @@
 {
     "db_path": "./example_database",
-    "db_type": "SQL"
+    "db_type": "SQL",
+    "type_path": "./types/"
 }

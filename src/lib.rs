@@ -64,6 +64,7 @@ mod test {
         let config = get_config("./example.json").unwrap();
         assert_eq!(config.db_path, "./example_database");
         assert_eq!(config.db_type, "SQL");
+        assert_eq!(config.type_path, None);
         delete_config();
     }
 

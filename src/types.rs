@@ -7,10 +7,12 @@ use crate::error::BackendError;
 pub struct Config {
     pub db_path: String,
     pub db_type: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub type_path: Option<String>,
 }
 
 /// A generic database data type.
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct Data<T> {
     contents: T,
     pub size: isize,
