@@ -6,6 +6,13 @@ pub struct BackendError {
     pub message: String,
 }
 
+/// Allows errors to be compared for testing
+impl std::cmp::PartialEq for BackendError {
+    fn eq(&self, other: &Self) -> bool {
+        self.message == other.message
+    }
+}
+
 /// Allows IO errors to be converted into BackendError's
 impl From<std::io::Error> for BackendError {
     fn from(e: std::io::Error) -> Self {

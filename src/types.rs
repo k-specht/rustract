@@ -12,10 +12,10 @@ pub struct Config {
 /// A generic database data type.
 #[derive(serde::Deserialize, Debug)]
 pub struct Data<T> {
-    pub contents: T,
+    contents: T,
     pub size: isize,
     pub bound: bool,
-    pub regex: String,
+    pub regex: String
 }
 
 /// Allows a type to have a generic length representing its digits or characters.
@@ -25,7 +25,7 @@ pub trait HasLength {
 
 impl<T> Data<T> {
     /// Constructs a new Data struct based on the parameters.
-    fn new(contents: T, size: isize, bound: bool, regex: String) -> Data<T> {
+    pub fn new(contents: T, size: isize, bound: bool, regex: String) -> Data<T> {
         Data { contents, size, bound, regex }
     }
 }
@@ -43,11 +43,16 @@ impl<T> Data<T> where T: HasLength {
 
         Ok(&self.contents)
     }
+
+    /// Retrieves the data after performing a test to ensure its integrity.
+    pub fn get(&self) -> Result<&T, BackendError> {
+        self.test_length()
+    }
 }
 
 impl<String> Data<String> where String: AsRef<str> {
     /// Tests the regex for a database String and returns the contents if it passes.
-    fn test_regex(&self) -> Result<&str, BackendError> {
+    pub fn test_regex(&self) -> Result<&str, BackendError> {
         if self.bound {
             match Regex::new(&self.regex) {
                 Ok(regex) => {
@@ -154,6 +159,7 @@ mod test {
 
     #[test]
     fn db_regex_test() {
+        // Tests the Regex library itself
         let good_email = "test_person89@test.com";
         let bad_email = "bad_email@test";
         let regex_str = "(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])";
@@ -161,6 +167,7 @@ mod test {
         assert!(regex.is_match(good_email));
         assert!(!regex.is_match(bad_email));
 
+        // Tests Data's regex testing function
         let good_data = Data::new(
             String::from(good_email), 
             255, 
@@ -174,12 +181,15 @@ mod test {
             String::from(regex_str)
         );
         assert_eq!(good_email, good_data.test_regex().unwrap());
-        // assert_eq!(bad_email, bad_data.test_regex());
-    }
-
-    #[test]
-    fn db_type_test() {
-        todo!();
+        match bad_data.test_regex() {
+            Ok(data) => panic!("Test failed; bad data passed regex test: {}", data),
+            Err(error) => assert_eq!(
+                BackendError {
+                    message: "Regex failed to match.".to_string()
+                },
+                error
+            ),
+        };
     }
 
     #[test]
@@ -198,7 +208,7 @@ mod test {
         );
 
         // Test passes if entering a number over the digit limit fails
-        match dbdata.test_length() {
+        match dbdata.get() {
             Ok(contents) => {
                 panic!("Size check failed: size: {}, contents: {}.", dbdata.size, contents);
             }
@@ -207,7 +217,7 @@ mod test {
             },
         };
         // Test passes if entering a String over the character limit fails
-        match dbdatastring.test_length() {
+        match dbdatastring.get() {
             Ok(contents) => {
                 panic!("Size check failed: size: {}, contents: {}.", dbdatastring.size, contents);
             }
