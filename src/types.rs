@@ -300,6 +300,10 @@ impl TableDesign {
         )?;
         Ok(())
     }
+
+    pub fn from(filepath: &str) -> Result<Self, BackendError> {
+        Ok(serde_json::from_str(&std::fs::read_to_string(filepath)?)?)
+    }
 }
 
 /// Retrieves the number of digits of a generic number.

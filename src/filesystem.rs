@@ -1,9 +1,9 @@
 use std::fs::{File, ReadDir, create_dir, read_dir};
-use std::path::Path;
 use std::io::Read;
+use std::path::Path;
 
 use crate::error::BackendError;
-use crate::types::{Config, DataType};
+use crate::types::{Config, TableDesign};
 
 /// Gets the config settings from the specified configuration file.
 pub fn get_config(json_path: &str) -> Result<Config, BackendError> {
@@ -21,11 +21,12 @@ pub fn read_file(path: &str) -> Result<String, BackendError> {
 }
 
 /// Reads types from the path specified in a config file.
-pub fn read_type(config: &Config) -> Result<(), BackendError> {
+pub fn load_types(config: &Config) -> Result<Vec<TableDesign>, BackendError> {
     // Gets the contents of the types directory
     let path = check_path(&config.type_path, "./types/")?;
 
     // Converts any files in that directory into types
+    let mut tables: Vec<TableDesign> = vec![];
     for dir_entry in path {
         // Gets the data from the Directory Entry
         let entry = dir_entry?;
@@ -33,33 +34,21 @@ pub fn read_type(config: &Config) -> Result<(), BackendError> {
 
         if metadata.is_file() {
             // Gets the path (it might not be a Unicode String)
-            // let path = &(entry.path().to_string_lossy());
-
-            // If the file has an extension
-            // match get_extension(path) {
-            //     Some(ext) => match DataType::from(ext) {
-            //         _ => print!("Error"),
-            //     },
-            //     None => continue,
-            // }
-            // let contents = read_file(path)?;
-            // let json = serde_json::to_value(serde_json::from_str(&contents)?)?;
+            let path = entry.path();
+            let filepath = &(path.to_string_lossy());
+            tables.push(TableDesign::from(filepath)?);
         }
     }
-    Ok(())
+    Ok(tables)
 }
-
-// fn get_extension(filename: &str) -> Option<&str> {
-//     match Path::new(filename).extension() {
-//         Some(extension) => Some(&extension.to_string_lossy()),
-//         None => None,
-//     }
-// }
 
 /// Reads the provided directory's contents or creates it and reads the new one.
 fn check_path(path: &Option<String>, default: &str) -> Result<ReadDir, BackendError> {
     Ok(match path {
         Some(path) => {
+            if !Path::new(path).is_dir() {
+                std::fs::create_dir(path)?;
+            }
             read_dir(path)?
         },
         None => {

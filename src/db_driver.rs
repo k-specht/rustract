@@ -1,7 +1,6 @@
-use crate::{error::BackendError, types::Config, filesystem::{read_type}};
+use crate::{error::BackendError, types::{Config, TableDesign}, filesystem::{load_types}};
 
 pub fn init(config: &Config) -> Result<(), BackendError> {
     print!("Stub: {}", config.db_type);
-    // read_type(config)?;
     Ok(())
 }

@@ -6,30 +6,32 @@ pub mod error;
 pub mod db_driver;
 pub mod types;
 pub mod filesystem;
-
 use types::Config;
 use error::BackendError;
-use filesystem::get_config;
+use filesystem::{get_config, load_types};
 
 /// Initializes a local library based on the input settings.
-pub fn init(json_path: &str) -> Result<String, BackendError> {
+pub fn init(json_path: &str) -> Result<(), BackendError> {
     let config = get_config(json_path)?;
+    let tables = load_types(&config)?;
 
-    // Attempts to read the database type in order to parse it properly
-    match config.db_type.as_str() {
-        "SQL" => init_sql(&config)?,
-        _ => return Err(BackendError {
-            message: format!("{} is not a valid database type.", config.db_type.as_str()),
-        }),
-    };
+    // Initialize database if there are no types saved
+    if tables.is_empty() {
+        // Attempts to read the database type in order to parse it properly
+        match config.db_type.as_str() {
+            "SQL" => init_sql(&config)?,
+            _ => return Err(BackendError {
+                message: format!("{} is not a valid database type.", config.db_type.as_str()),
+            }),
+        };
+    }
 
-    Ok("Success".to_string())
+    Ok(())
 }
 
 /// Initializes the SQL database interface.
 fn init_sql(config: &Config) -> Result<(), BackendError> {
-    db_driver::init(config)?;
-    Ok(())
+    db_driver::init(config)
 }
 
 #[cfg(test)]
