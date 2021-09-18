@@ -15,7 +15,7 @@ pub fn init(json_path: &str) -> Result<(), BackendError> {
     let config = get_config(json_path)?;
     let tables = load_types(&config)?;
 
-    // Initialize database if there are no types saved
+    // Initialize database types if there are no types saved
     if tables.is_empty() {
         // Attempts to read the database type in order to parse it properly
         match config.db_type.as_str() {

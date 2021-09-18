@@ -40,6 +40,15 @@ impl From<regex::Error> for BackendError {
     }
 }
 
+/// Allows SQLx errors to be converted into BackendError's.
+impl From<sqlx::Error> for BackendError {
+    fn from(error: sqlx::Error) -> Self {
+        BackendError {
+            message: error.to_string(),
+        }
+    }
+}
+
 // This just adds the Error trait to BackendError's
 impl std::error::Error for BackendError {}
 

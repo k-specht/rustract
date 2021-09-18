@@ -293,6 +293,7 @@ impl TableDesign {
         Ok(())
     }
 
+    /// Saves the configuration info to a JSON file for quick loading.
     pub fn save(&self, filepath: &str) -> Result<(), BackendError> {
         std::fs::write(
             filepath,
@@ -301,6 +302,7 @@ impl TableDesign {
         Ok(())
     }
 
+    /// Creates an instance of this struct from the JSON file at the specified path.
     pub fn from(filepath: &str) -> Result<Self, BackendError> {
         Ok(serde_json::from_str(&std::fs::read_to_string(filepath)?)?)
     }
