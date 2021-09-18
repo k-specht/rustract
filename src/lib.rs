@@ -5,10 +5,11 @@
 pub mod error;
 pub mod db_driver;
 pub mod types;
+pub mod filesystem;
+
 use types::Config;
 use error::BackendError;
-use std::fs;
-use std::io::Read;
+use filesystem::get_config;
 
 /// Initializes a local library based on the input settings.
 pub fn init(json_path: &str) -> Result<String, BackendError> {
@@ -16,7 +17,7 @@ pub fn init(json_path: &str) -> Result<String, BackendError> {
 
     // Attempts to read the database type in order to parse it properly
     match config.db_type.as_str() {
-        "SQL" => init_sql(config),
+        "SQL" => init_sql(&config),
         _ => return Err(BackendError {
             message: format!("{} is not a valid database type.", config.db_type.as_str()),
         }),
@@ -26,23 +27,8 @@ pub fn init(json_path: &str) -> Result<String, BackendError> {
 }
 
 /// Initializes the SQL database interface.
-fn init_sql(config: Config) {
+fn init_sql(config: &Config) {
     db_driver::init(config);
-}
-
-/// Gets the config settings from the specified configuration file.
-fn get_config(json_path: &str) -> Result<Config, BackendError> {
-    let s = read_file(json_path)?;
-    let json: Config = serde_json::from_str(&s)?;
-    Ok(json)
-}
-
-/// Reads the file at the specified path.
-fn read_file(path: &str) -> Result<String, BackendError> {
-    let mut file = fs::File::open(path)?;
-    let mut s = String::new();
-    file.read_to_string(&mut s)?;
-    Ok(s)
 }
 
 #[cfg(test)]
