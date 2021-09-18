@@ -408,6 +408,28 @@ mod test {
         assert_eq!(table_design, new_table);
     }
 
+    #[test]
+    fn table_data_test() {
+        let table_design = default_table();
+        let json = serde_json::json!({
+            "code": 200,
+            "success": true,
+            "payload": {
+                "fields": [
+                    {
+                        "title": "User",
+                        "email": "test@test.com"
+                    },
+                ]
+            }
+        });
+        let fields = match json["payload"]["fields"].as_array() {
+            Some(val) => val,
+            None => panic!("Test failed, could not read JSON data as an array."),
+        };
+        table_design.test(fields).unwrap();
+    }
+
     /// Creates a default TableDesign struct for use in testing.
     fn default_table() -> TableDesign {
         let fields: Vec<FieldDesign> = vec![
@@ -434,7 +456,7 @@ mod test {
                 regex: String::new(),
                 primary: false,
                 unique: false,
-                required: true,
+                required: false,
                 foreign: None
             },
         ];
