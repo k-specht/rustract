@@ -17,7 +17,7 @@ pub fn init(json_path: &str) -> Result<String, BackendError> {
 
     // Attempts to read the database type in order to parse it properly
     match config.db_type.as_str() {
-        "SQL" => init_sql(&config),
+        "SQL" => init_sql(&config)?,
         _ => return Err(BackendError {
             message: format!("{} is not a valid database type.", config.db_type.as_str()),
         }),
@@ -27,8 +27,9 @@ pub fn init(json_path: &str) -> Result<String, BackendError> {
 }
 
 /// Initializes the SQL database interface.
-fn init_sql(config: &Config) {
-    db_driver::init(config);
+fn init_sql(config: &Config) -> Result<(), BackendError> {
+    db_driver::init(config)?;
+    Ok(())
 }
 
 #[cfg(test)]

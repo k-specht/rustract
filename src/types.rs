@@ -166,11 +166,7 @@ impl FieldDesign {
                     )?
                 )?;
             },
-            DataType::Enum => todo!(),
-            _ => {
-                // This is only reached if there's a development issue
-                panic!("Unsupported DataType used: {:?}", self.datatype);
-            }
+            DataType::Enum => todo!()
         };
         Ok(())
     }
@@ -182,12 +178,12 @@ where E: Copy + std::convert::TryInto<T>
 {
     match value.try_into() {
         Ok(val) => Ok(val),
-        Err(error) => Err(BackendError {
+        Err(_) => Err(BackendError {
             message: format!(
                 "Field {} is over the byte limit for type {}.",
                 field_design.title,
                 field_design.datatype
-            )
+            ),
         }),
     }
 }
@@ -269,23 +265,17 @@ pub struct TableDesign {
 
 impl TableDesign {
     /// Tests the provided JSON values against this table's design.
-    fn test(&self, fields: &Vec<Value>) -> Result<(), BackendError> {
+    pub fn test(&self, fields: &[Value]) -> Result<(), BackendError> {
         // Iterates over the fields in this design and attempts to match each to the JSON
         for field_design in &self.fields {
             let mut matched = false;
 
             // Finds a match for this field design
             for field in fields {
-                match field.get(&field_design.title) {
-                    // Once matched, run the field's relevant tests
-                    Some(val) => {
-                        matched = true;
-                        field_design.test_json(val)?;
-                        break;
-                    },
-                    None => {
-                        // Ignore non-matching or unrelated fields
-                    }
+                if let Some(val) = field.get(&field_design.title) {
+                    matched = true;
+                    field_design.test_json(val)?;
+                    break;
                 }
             }
 

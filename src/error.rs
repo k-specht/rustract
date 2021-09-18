@@ -1,4 +1,4 @@
-use std::{convert::Infallible, fmt::{Display, Formatter, Result}};
+use std::fmt::{Display, Formatter, Result};
 
 /// An initialization error in the Rusty Backend library.
 #[derive(Debug, Clone)]
