@@ -8,10 +8,10 @@ use crate::error::BackendError;
 /// Holds configuration info for the library.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Config {
-    db_type: String,
-    db_path: String,
-
-    type_path: Option<String>,
+    pub db_type: String,
+    pub db_path: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub type_path: Option<String>,
 }
 pub trait Testable {
     fn test(&self) -> Result<(), BackendError>;
