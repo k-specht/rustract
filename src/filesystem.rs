@@ -68,3 +68,9 @@ fn check_path(path: &Option<String>, default: &str) -> Result<ReadDir, BackendEr
         },
     })
 }
+
+/// Deletes the specified file (usually used after testing).
+pub fn delete_file(filepath: &str) -> Result<(), BackendError> {
+    std::fs::remove_file(filepath)?;
+    Ok(())
+}

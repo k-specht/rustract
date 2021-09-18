@@ -13,12 +13,9 @@ pub struct Config {
     #[serde(skip_serializing_if="Option::is_none")]
     pub type_path: Option<String>,
 }
-pub trait Testable {
-    fn test(&self) -> Result<(), BackendError>;
-}
 
 /// Defines a possible type of Database Data.
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub enum DataType {
     // String
     String,
@@ -70,13 +67,14 @@ impl Display for DataType {
 /// 
 /// This may be more strict than the database allows,
 /// but this allows more compatibility and type safety.
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub struct FieldDesign {
     pub title: String,
     pub datatype: DataType,
     pub bytes: isize,
     pub characters: isize,
-    pub decimals: isize,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub decimals: Option<isize>,
     pub regex_bound: bool,
     pub regex: String,
     pub primary: bool,
@@ -257,7 +255,7 @@ where T: AsRef<str>
 }
 
 /// Describes a database table's design.
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, PartialEq)]
 pub struct TableDesign {
     pub title: String,
     pub fields: Vec<FieldDesign>,
@@ -290,6 +288,14 @@ impl TableDesign {
                 });
             }
         }
+        Ok(())
+    }
+
+    pub fn save(&self, filepath: &str) -> Result<(), BackendError> {
+        std::fs::write(
+            filepath,
+            serde_json::to_string_pretty(self)?
+        )?;
         Ok(())
     }
 }
@@ -375,6 +381,8 @@ impl HasLength for u8 {
 
 #[cfg(test)]
 mod test {
+    use crate::filesystem::{delete_file, read_file};
+
     use super::*;
 
     #[test]
@@ -387,5 +395,52 @@ mod test {
 
         assert!(regex.is_match(good_email));
         assert!(!regex.is_match(bad_email));
+    }
+
+    #[test]
+    fn table_test() {
+        let filepath = String::from("./tests/test_type.json");
+        let table_design = default_table();
+        table_design.save(&filepath).unwrap();
+        let string_form = read_file(&filepath).unwrap();
+        delete_file(&filepath).unwrap();
+        let new_table: TableDesign = serde_json::from_str(&string_form).unwrap();
+        assert_eq!(table_design, new_table);
+    }
+
+    /// Creates a default TableDesign struct for use in testing.
+    fn default_table() -> TableDesign {
+        let fields: Vec<FieldDesign> = vec![
+            FieldDesign {
+                title: String::from("email"),
+                datatype: DataType::String,
+                bytes: 800,
+                characters: 100,
+                decimals: None,
+                regex_bound: true,
+                regex: String::from("(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])"),
+                primary: false,
+                unique: false,
+                required: true,
+                foreign: None
+            },
+            FieldDesign {
+                title: String::from("name"),
+                datatype: DataType::String,
+                bytes: 800,
+                characters: 100,
+                decimals: None,
+                regex_bound: false,
+                regex: String::new(),
+                primary: false,
+                unique: false,
+                required: true,
+                foreign: None
+            },
+        ];
+        TableDesign {
+            title: String::from("User"),
+            fields,
+        }
     }
 }
