@@ -90,58 +90,50 @@ impl FieldDesign {
         // This match results in duplicated code, but is needed due to limitations of serde_json
         match self.datatype {
             DataType::String => {
-                let json_string = String::from(test_type(self, json.as_str())?);
-                test_length::<String>(self, &json_string)?;
-                test_byte_length::<String>(self, &json_string)?;
-                test_regex(self, &json_string)?;
+                let json_string = String::from(self.test_type(json.as_str())?);
+                self.test_length::<String>(&json_string)?;
+                self.test_byte_length::<String>(&json_string)?;
+                self.test_regex(&json_string)?;
                 
             },
             DataType::ByteString => todo!(),
             DataType::JSON => todo!(),
             DataType::Signed64 => {
-                let json_int = test_type(self, json.as_i64())?;
-                test_length::<i64>(self, &json_int)?;
+                let json_int = self.test_type(json.as_i64())?;
+                self.test_length::<i64>(&json_int)?;
             },
             DataType::Unsigned64 => {
-                let json_int = test_type(self, json.as_u64())?;
-                test_length::<u64>(self, &json_int)?;
+                let json_int = self.test_type(json.as_u64())?;
+                self.test_length::<u64>(&json_int)?;
             },
             DataType::Signed32 => {
-                let json_int = test_type(self, json.as_i64())?;
-                test_length::<i32>(
-                    self, 
-                    &downsize::<i32,i64>(
-                        self,
+                let json_int = self.test_type(json.as_i64())?;
+                self.test_length::<i32>(
+                    &self.downsize::<i32,i64>(
                         json_int,
                     )?
                 )?;
             },
             DataType::Unsigned32 => {
-                let json_int = test_type(self, json.as_u64())?;
-                test_length::<u32>(
-                    self, 
-                    &downsize::<u32,u64>(
-                        self,
+                let json_int = self.test_type(json.as_u64())?;
+                self.test_length::<u32>(
+                    &self.downsize::<u32,u64>(
                         json_int,
                     )?
                 )?;
             },
             DataType::Signed16 => {
-                let json_int = test_type(self, json.as_i64())?;
-                test_length::<i16>(
-                    self, 
-                    &downsize::<i16,i64>(
-                        self,
+                let json_int = self.test_type(json.as_i64())?;
+                self.test_length::<i16>(
+                    &self.downsize::<i16,i64>(
                         json_int,
                     )?
                 )?;
             },
             DataType::Unsigned16 => {
-                let json_int = test_type(self, json.as_u64())?;
-                test_length::<u16>(
-                    self, 
-                    &downsize::<u16,u64>(
-                        self,
+                let json_int = self.test_type(json.as_u64())?;
+                self.test_length::<u16>(
+                    &self.downsize::<u16,u64>(
                         json_int,
                     )?
                 )?;
@@ -149,17 +141,15 @@ impl FieldDesign {
             DataType::Float64 => todo!(),
             DataType::Float32 => todo!(),
             DataType::Boolean => {
-                test_type(self, json.as_bool())?;
+                self.test_type(json.as_bool())?;
             },
             DataType::Bit => {
-                test_type(self, json.as_bool())?;
+                self.test_type(json.as_bool())?;
             },
             DataType::Byte => {
-                let json_int = test_type(self, json.as_u64())?;
-                test_length::<u8>(
-                    self, 
-                    &downsize::<u8,u64>(
-                        self,
+                let json_int = self.test_type(json.as_u64())?;
+                self.test_length::<u8>(
+                    &self.downsize::<u8,u64>(
                         json_int,
                     )?
                 )?;
@@ -168,92 +158,92 @@ impl FieldDesign {
         };
         Ok(())
     }
-}
 
-/// Attempts to downsize the given number into the specified size.
-fn downsize<T, E>(field_design: &FieldDesign, value: E) -> Result<T, BackendError>
-where E: Copy + std::convert::TryInto<T>
-{
-    match value.try_into() {
-        Ok(val) => Ok(val),
-        Err(_) => Err(BackendError {
-            message: format!(
-                "Field {} is over the byte limit for type {}.",
-                field_design.title,
-                field_design.datatype
-            ),
-        }),
-    }
-}
-
-/// Tests the given JSON value against the listed type using Serde.
-fn test_type<T>(field_design: &FieldDesign, value: Option<T>) -> Result<T, BackendError> {
-    match value {
-        Some(val) => Ok(val),
-        None => Err(BackendError {
-            message: format!(
-                "Field {} is not of type {}. (JSON cast failed).",
-                field_design.title,
-                field_design.datatype
-            ),
-        }),
-    }
-}
-
-/// Tests the length (digits or chars) of the given struct against the field's limit.
-fn test_length<T>(field_design: &FieldDesign, value: &T) -> Result<(), BackendError>
-where T: HasLength
-{
-    match value.length() > field_design.characters {
-        true => Err(BackendError {
-            message: format!(
-                "Field {} is over the size limit of {}.\n(Size: {}).",
-                field_design.title,
-                field_design.characters,
-                value.length()
-            ),
-        }),
-        false => Ok(())
-    }
-}
-
-/// Tests the byte length of the given struct against the field's limit.
-fn test_byte_length<T>(field_design: &FieldDesign, value: &T) -> Result<(), BackendError>
-where T: HasBytes
-{
-    match value.byte_length() > field_design.bytes {
-        true => Err(BackendError {
-            message: format!(
-                "Field {} is over the byte limit of {}.\n(Bytes: {}).",
-                field_design.title,
-                field_design.bytes,
-                value.byte_length()
-            ),
-        }),
-        false => Ok(()),
-    }
-}
-
-/// Tests the given struct against the field's regex restrictions.
-fn test_regex<T>(field_design: &FieldDesign, value: &T) -> Result<(), BackendError>
-where T: AsRef<str>
-{
-    if field_design.regex_bound {
-        // TODO: Implement Serialize/Deserialize traits for Regex to remove runtime cost.
-        let regex = Regex::new(&field_design.regex)?;
-
-        if !regex.is_match(value.as_ref()) {
-            return Err(BackendError {
+    /// Unwraps the Option-wrapped Serde value along with a relevant error message.
+    fn test_type<T>(&self, value: Option<T>) -> Result<T, BackendError> {
+        match value {
+            Some(val) => Ok(val),
+            None => Err(BackendError {
                 message: format!(
-                    "Field {} failed to match the regex restriction of {}.",
-                    field_design.title,
-                    regex.to_string()
+                    "Field {} is not of type {}. (JSON cast failed).",
+                    self.title,
+                    self.datatype
                 ),
-            });
+            }),
         }
     }
 
-    Ok(())
+    /// Tests the length (digits or chars) of the given struct against this field's limit.
+    fn test_length<T>(&self, value: &T) -> Result<(), BackendError>
+    where T: HasLength
+    {
+        match value.length() > self.characters {
+            true => Err(BackendError {
+                message: format!(
+                    "Field {} is over the size limit of {}.\n(Size: {}).",
+                    self.title,
+                    self.characters,
+                    value.length()
+                ),
+            }),
+            false => Ok(())
+        }
+    }
+
+    /// Tests the byte length of the given struct against this field's limit.
+    fn test_byte_length<T>(&self, value: &T) -> Result<(), BackendError>
+    where T: HasBytes
+    {
+        match value.byte_length() > self.bytes {
+            true => Err(BackendError {
+                message: format!(
+                    "Field {} is over the byte limit of {}.\n(Bytes: {}).",
+                    self.title,
+                    self.bytes,
+                    value.byte_length()
+                ),
+            }),
+            false => Ok(()),
+        }
+    }
+
+    /// Attempts to downsize the given number into the specified size.
+    fn downsize<T, E>(&self, value: E) -> Result<T, BackendError>
+    where E: Copy + std::convert::TryInto<T>
+    {
+        match value.try_into() {
+            Ok(val) => Ok(val),
+            Err(_) => Err(BackendError {
+                message: format!(
+                    "Field {} is over the byte limit for type {}.",
+                    self.title,
+                    self.datatype
+                ),
+            }),
+        }
+    }
+
+    /// Tests the given struct against this field's regex restrictions.
+    fn test_regex<T>(&self, value: &T) -> Result<(), BackendError>
+    where T: AsRef<str>
+    {
+        if self.regex_bound {
+            // TODO: Implement Serialize/Deserialize traits for Regex to remove runtime cost.
+            let regex = Regex::new(&self.regex)?;
+
+            if !regex.is_match(value.as_ref()) {
+                return Err(BackendError {
+                    message: format!(
+                        "Field {} failed to match the regex restriction of {}.",
+                        self.title,
+                        regex.to_string()
+                    ),
+                });
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Describes a database table's design.
