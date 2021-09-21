@@ -1,5 +1,7 @@
 use std::fmt::{Display, Formatter, Result};
 
+use tokio::time::error::Elapsed;
+
 /// An initialization error in the Rusty Backend library.
 #[derive(Debug, Clone)]
 pub struct BackendError {
@@ -43,6 +45,14 @@ impl From<regex::Error> for BackendError {
 /// Allows SQLx errors to be converted into BackendError's.
 impl From<sqlx::Error> for BackendError {
     fn from(error: sqlx::Error) -> Self {
+        BackendError {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<Elapsed> for BackendError {
+    fn from(error: Elapsed) -> Self {
         BackendError {
             message: error.to_string(),
         }
