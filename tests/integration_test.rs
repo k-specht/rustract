@@ -20,8 +20,8 @@ async fn main() -> Result<(), BackendError> {
     // Create a future from the warp_test function
     let future = warp_test();
 
-    // Wrap the future with a `Timeout` set to expire in 10 milliseconds.
-    let result = timeout(Duration::from_millis(100), future).await;
+    // Wrap the future with a `Timeout` set to expire.
+    let result = timeout(Duration::from_millis(1000), future).await;
 
     // This seems odd, but if the warp test fails the server should have exited before the timeout
     assert!(result.is_err());
@@ -34,7 +34,12 @@ async fn main() -> Result<(), BackendError> {
 /// TODO: Add a client test to this that panics on failure!
 async fn warp_test() -> Result<(), BackendError> {
     let hello_world = warp::path::end().map(|| "Hello, World at root!");
-    let routes = warp::get().and(hello_world);
+    let numb = warp::path!(u16).map(|a| format!("{}", a));
+    let path = warp::path("hello").and(numb);
+    let routes = warp::get()
+        .and(hello_world
+        .or(path)
+    );
     warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
     Ok(())
 }

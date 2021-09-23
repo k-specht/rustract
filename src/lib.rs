@@ -6,6 +6,7 @@ pub mod error;
 pub mod db_driver;
 pub mod types;
 pub mod filesystem;
+pub mod sql;
 use types::Config;
 use error::BackendError;
 use filesystem::{get_config, load_types};
