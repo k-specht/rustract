@@ -15,7 +15,7 @@ pub struct Config {
 }
 
 /// Defines a possible type of Database Data.
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub enum DataType {
     // String
     String,
@@ -67,24 +67,43 @@ impl Display for DataType {
 /// 
 /// This may be more strict than the database allows,
 /// but this allows more compatibility and type safety.
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct FieldDesign {
     pub title: String,
     pub datatype: DataType,
     pub bytes: isize,
-    pub characters: isize,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub characters: Option<isize>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub decimals: Option<isize>,
-    pub regex_bound: bool,
-    pub regex: String,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub regex: Option<String>,
     pub primary: bool,
     pub unique: bool,
     pub required: bool,
     #[serde(skip_serializing_if="Option::is_none")]
     pub foreign: Option<String>,
+    pub increment: bool,
 }
 
 impl FieldDesign {
+    /// Constructs a new field, defaulting to varchar(255).
+    pub fn new(title: &str) -> Self {
+        FieldDesign {
+            title: String::from(title),
+            datatype: DataType::String,
+            bytes: 255,
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: false,
+            unique: false,
+            required: false,
+            foreign: None,
+            increment: false,
+        }
+    }
+
     /// Tests the provided JSON value against this field's design.
     fn test_json(&self, json: &Value) -> Result<(), BackendError> {
         // This match results in duplicated code, but is needed due to limitations of serde_json
@@ -177,17 +196,20 @@ impl FieldDesign {
     fn test_length<T>(&self, value: &T) -> Result<(), BackendError>
     where T: HasLength
     {
-        match value.length() > self.characters {
-            true => Err(BackendError {
-                message: format!(
-                    "Field {} is over the size limit of {}.\n(Size: {}).",
-                    self.title,
-                    self.characters,
-                    value.length()
-                ),
-            }),
-            false => Ok(())
+        if let Some(max) = self.characters {
+            match value.length() > max {
+                true => return Err(BackendError {
+                    message: format!(
+                        "Field {} is over the size limit of {}.\n(Size: {}).",
+                        self.title,
+                        max,
+                        value.length()
+                    ),
+                }),
+                false => return Ok(())
+            }
         }
+        Ok(())
     }
 
     /// Tests the byte length of the given struct against this field's limit.
@@ -227,9 +249,9 @@ impl FieldDesign {
     fn test_regex<T>(&self, value: &T) -> Result<(), BackendError>
     where T: AsRef<str>
     {
-        if self.regex_bound {
+        if let Some(val) = &self.regex {
             // TODO: Implement Serialize/Deserialize traits for Regex to remove runtime cost.
-            let regex = Regex::new(&self.regex)?;
+            let regex = Regex::new(val)?;
 
             if !regex.is_match(value.as_ref()) {
                 return Err(BackendError {
@@ -247,13 +269,20 @@ impl FieldDesign {
 }
 
 /// Describes a database table's design.
-#[derive(Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct TableDesign {
     pub title: String,
     pub fields: Vec<FieldDesign>,
 }
 
 impl TableDesign {
+    pub fn new(title: &str, fields: Vec<FieldDesign>) -> Self {
+        TableDesign {
+            title: String::from(title),
+            fields
+        }
+    }
+
     /// Tests the provided JSON values against this table's design.
     pub fn test(&self, fields: &[Value]) -> Result<(), BackendError> {
         // Iterates over the fields in this design and attempts to match each to the JSON
@@ -295,6 +324,21 @@ impl TableDesign {
     /// Creates an instance of this struct from the JSON file at the specified path.
     pub fn from(filepath: &str) -> Result<Self, BackendError> {
         Ok(serde_json::from_str(&std::fs::read_to_string(filepath)?)?)
+    }
+
+    /// Adds the provided field to this table.
+    pub fn add(&mut self, field: FieldDesign) {
+        self.fields.push(field);
+    }
+
+    /// Gets the specified field by its title. If there's a duplicate, the first is returned.
+    pub fn get(&mut self, title: &str) -> Option<&mut FieldDesign> {
+        for field in &mut self.fields {
+            if field.title == title {
+                return Some(field);
+            }
+        }
+        None
     }
 }
 
@@ -435,27 +479,27 @@ mod test {
                 title: String::from("email"),
                 datatype: DataType::String,
                 bytes: 800,
-                characters: 110,
+                characters: Some(110),
                 decimals: None,
-                regex_bound: true,
-                regex: String::from("(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])"),
+                regex: Some(String::from("(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])")),
                 primary: false,
                 unique: false,
                 required: true,
-                foreign: None
+                foreign: None,
+                increment: false
             },
             FieldDesign {
                 title: String::from("name"),
                 datatype: DataType::String,
                 bytes: 800,
-                characters: 100,
+                characters: Some(100),
                 decimals: None,
-                regex_bound: false,
-                regex: String::new(),
+                regex: None,
                 primary: false,
                 unique: false,
                 required: false,
-                foreign: None
+                foreign: None,
+                increment: false,
             },
         ];
         TableDesign {

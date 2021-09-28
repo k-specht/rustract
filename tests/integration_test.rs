@@ -7,7 +7,7 @@
 
 use std::time::Duration;
 
-use rusty_backend::error::BackendError;
+use rusty_backend::{error::BackendError, init};
 use tokio::time::timeout;
 use warp::Filter;
 
@@ -15,13 +15,13 @@ use warp::Filter;
 #[tokio::test]
 async fn main() -> Result<(), BackendError> {
     // Test this library's config integration
-    // init("./tests/example_config.json")?;
+    init("./tests/example_config.json")?;
 
     // Create a future from the warp_test function
     let future = warp_test();
 
     // Wrap the future with a `Timeout` set to expire.
-    let result = timeout(Duration::from_millis(1000), future).await;
+    let result = timeout(Duration::from_millis(500), future).await;
 
     // This seems odd, but if the warp test fails the server should have exited before the timeout
     assert!(result.is_err());
