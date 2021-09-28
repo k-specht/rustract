@@ -15,6 +15,15 @@ impl std::cmp::PartialEq for BackendError {
     }
 }
 
+/// Allows parse int errors to be converted into BackendError's.
+impl From<std::num::ParseIntError> for BackendError {
+    fn from(e: std::num::ParseIntError) -> Self {
+        BackendError {
+            message: e.to_string(),
+        }
+    }
+}
+
 /// Allows IO errors to be converted into BackendError's.
 impl From<std::io::Error> for BackendError {
     fn from(e: std::io::Error) -> Self {

@@ -31,14 +31,15 @@ impl Database {
     }
 }
 
-pub fn init(schema_path: &str) -> Result<(), BackendError> {
+pub fn init(schema_path: &str) -> Result<Database, BackendError> {
     let schema = read_file(schema_path)?;
     let mut reading = false;
     let mut db = Database::new(None);
     let mut new_table = TableDesign::new("Temp", vec![]);
 
     // Loop until all tables are found
-    for line in schema.lines() {
+    for line_src in schema.lines() {
+        let line = line_src.trim();
         // Only read sections that declare new tables
         if line.contains("CREATE TABLE") {
             reading = true;
@@ -59,7 +60,7 @@ pub fn init(schema_path: &str) -> Result<(), BackendError> {
         }
     }
     
-    Ok(())
+    Ok(db)
 }
 
 /// Attempts to read the table name from the provided schema line.
@@ -67,14 +68,7 @@ fn read_name(line: &str) -> Result<String, BackendError> {
     let tokens: Vec<&str> = line.split(' ').collect();
     for token in tokens {
         if token.starts_with('`') {
-            if token.len() > 2 {
-                return Ok(String::from(&token[1..token.len()-1]));
-            }
-            else {
-                return Err(BackendError {
-                    message: format!("Table name parse failed. Tried to read {} as a table name.", token),
-                });
-            }
+            return unwrap_str(token);
         }
     }
 
@@ -122,25 +116,42 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
             }
         }
     }
-    field.title = String::from(&tokens[0][1..tokens[0].len()]);
+    field.title = unwrap_str(tokens[0])?;
 
     // Sets the data type and related fields
-    match tokens[1] {
-        "int" => {
-            field.datatype = if line.contains("unsigned") { DataType::Unsigned64 } else { DataType::Signed64 };
-            field.increment = line.contains("AUTO_INCREMENT");
-            field.bytes = 64;
-        },
-        _ => {
-            return Err(BackendError {
-                message: format!("Failed to read schema, {} is not a valid token.", tokens[1]),
-            });
-        }
+    if tokens[1] == "int" {
+        field.datatype = if line.contains("unsigned") { DataType::Unsigned64 } else { DataType::Signed64 };
+        field.increment = line.contains("AUTO_INCREMENT");
+        field.bytes = 64;
+    } else if tokens[1].starts_with("varchar(") {
+        // Pulls the size out of the varchar wrap and converts it to an integer
+        field.datatype = DataType::String;
+        let index = match tokens[1].next_index_of(")", 6) {
+            Some(val) => val,
+            None => return Err(BackendError {
+                message: format!("Schema line {} has invalid characters in varchar.", line),
+            })
+        };
+        field.bytes = tokens[1][6..index].parse()?;
+    } else {
+        return Err(BackendError {
+            message: format!("Failed to read schema, {} is not a valid token.", tokens[1]),
+        });
     }
 
     field.required = line.contains("NOT NULL");
     table.add(field);
     Ok(())
+}
+
+/// Pulls a value out of a sql string-wrapped slice.
+fn unwrap_str(str: &str) -> Result<String, BackendError> {
+    match str.len() > 2 && str.contains('`') {
+        true => Ok(String::from(&(str[1..str.len()-1]))),
+        false => Err(BackendError {
+            message: format!("String slice does not match the format `val`: {}", str),
+        })
+    }
 }
 
 /// Adds indexing functions to the implementing type.
@@ -159,9 +170,9 @@ impl IndexOf for String {
 
     fn next_index_of(&self, sequence: &str, from:usize) -> Option<usize> {
         let char_sequence: Vec<char> = sequence.chars().collect();
-        let mut index = from;
+        let mut index = 0;
         let mut matching = false;
-        for character in self.chars() {
+        for character in self.chars().skip(from) {
             if character == char_sequence[index] {
                 matching = true;
                 index += 1;
@@ -171,5 +182,41 @@ impl IndexOf for String {
             }
         }
         None
+    }
+}
+
+impl IndexOf for &str {
+    fn index_of(&self, sequence: &str) -> Option<usize> {
+        self.next_index_of(sequence, 0)
+    }
+
+    fn next_index_of(&self, sequence: &str, from:usize) -> Option<usize> {
+        let char_sequence: Vec<char> = sequence.chars().collect();
+        let mut index = 0;
+        let mut matching = false;
+        for character in self.chars().skip(from) {
+            if character == char_sequence[index] {
+                matching = true;
+                index += 1;
+            }
+            if matching && index == char_sequence.len() {
+                return Some(index);
+            }
+        }
+        None
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn schema_test() {
+        let schema_path = "./tests/schema.sql";
+        let mut db = init(schema_path).expect("Schema test failed");
+        let table = db.get("user").expect("Schema test failed: No user table read.");
+        let field = table.get("email").expect("Schema test failed: No email field.");
+        assert!(field.required);
     }
 }
