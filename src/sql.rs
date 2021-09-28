@@ -100,8 +100,7 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
             message: format!("Table field {} cannot have empty name. Line: {}", tokens[0], line),
         });
     }
-    let mut field = FieldDesign::new("Temp");
-    let mut field_ref = &mut field;
+    let mut field = FieldDesign::new("TEMP");
     if tokens[0] == "PRIMARY" {
         // Skips over the word "KEY"
         match tokens.get(2) {
@@ -123,27 +122,14 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
             }
         }
     }
-    let title = &tokens[0][1..tokens[0].len()];
-    table.add(FieldDesign::new(title));
-    field_ref = table.get(title).unwrap();
+    field.title = String::from(&tokens[0][1..tokens[0].len()]);
 
+    // Sets the data type and related fields
     match tokens[1] {
-        "PRIMARY" => {
-            
-        },
-        "KEY" => {
-            // Handled by primary, so shouldn't throw error
-        },
         "int" => {
-            field_ref.datatype = if line.contains("unsigned") { DataType::Unsigned64 } else { DataType::Signed64 };
-            field_ref.increment = line.contains("AUTO_INCREMENT");
-            field_ref.bytes = 64;
-        },
-        "unsigned" => {
-            // Handled by int, so shouldn't throw error
-        },
-        "NOT" => {
-            field_ref.required = true;
+            field.datatype = if line.contains("unsigned") { DataType::Unsigned64 } else { DataType::Signed64 };
+            field.increment = line.contains("AUTO_INCREMENT");
+            field.bytes = 64;
         },
         _ => {
             return Err(BackendError {
@@ -151,6 +137,9 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
             });
         }
     }
+
+    field.required = line.contains("NOT NULL");
+    table.add(field);
     Ok(())
 }
 
