@@ -7,12 +7,24 @@ pub struct Database {
     pub tables: Vec<TableDesign>,
 }
 
+impl std::fmt::Display for Database {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let title = if self.title.is_some() {&self.title.as_ref().unwrap()} else { "Database" };
+        write!(f, "{}: ({:?})", title, self.tables)
+    }
+}
+
 impl Database {
     pub fn new(title: Option<String>) -> Self {
         Database {
             title,
             tables: vec![],
         }
+    }
+
+    /// Returns true if the database contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.tables.is_empty()
     }
 
     /// Adds the table to this database.
@@ -35,7 +47,7 @@ pub fn init(schema_path: &str) -> Result<Database, BackendError> {
     let schema = read_file(schema_path)?;
     let mut reading = false;
     let mut db = Database::new(None);
-    let mut new_table = TableDesign::new("Temp", vec![]);
+    let mut table_title = String::new();
 
     // Loop until all tables are found
     for line_src in schema.lines() {
@@ -43,8 +55,8 @@ pub fn init(schema_path: &str) -> Result<Database, BackendError> {
         // Only read sections that declare new tables
         if line.contains("CREATE TABLE") {
             reading = true;
-            new_table = TableDesign::new(&read_name(line)?, vec![]);
-            db.add(new_table.clone());
+            table_title = read_name(line)?;
+            db.add(TableDesign::new(&table_title));
             continue;
         }
 
@@ -56,7 +68,7 @@ pub fn init(schema_path: &str) -> Result<Database, BackendError> {
 
         // Add each line to the database
         if reading {
-            add_to_db(line, &mut db.get(&new_table.title).unwrap())?;
+            add_to_db(line, db.get(&table_title).unwrap())?;
         }
     }
     
@@ -100,7 +112,7 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
         match tokens.get(2) {
             Some(val) => {
                 // Sets the requested field to primary
-                match table.get(*val) {
+                match table.get(&unwrap_str(*val)?) {
                     Some(value) => value,
                     None => {
                         return Err(BackendError {
@@ -108,6 +120,7 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
                         });
                     }
                 }.primary = true;
+                return Ok(());
             },
             None => {
                 return Err(BackendError {
@@ -126,13 +139,13 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
     } else if tokens[1].starts_with("varchar(") {
         // Pulls the size out of the varchar wrap and converts it to an integer
         field.datatype = DataType::String;
-        let index = match tokens[1].next_index_of(")", 6) {
+        let index = match tokens[1].next_index_of(")", 7) {
             Some(val) => val,
             None => return Err(BackendError {
                 message: format!("Schema line {} has invalid characters in varchar.", line),
             })
         };
-        field.bytes = tokens[1][6..index].parse()?;
+        field.bytes = tokens[1][8..index].parse()?;
     } else {
         return Err(BackendError {
             message: format!("Failed to read schema, {} is not a valid token.", tokens[1]),
@@ -147,7 +160,17 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
 /// Pulls a value out of a sql string-wrapped slice.
 fn unwrap_str(str: &str) -> Result<String, BackendError> {
     match str.len() > 2 && str.contains('`') {
-        true => Ok(String::from(&(str[1..str.len()-1]))),
+        true => {
+            // This unwrap should be safe since it contains this character
+            let pos_1 = str.index_of("`").unwrap();
+            let pos_2 = str.next_index_of("`", pos_1);
+            if pos_2.is_none() {
+                return Err(BackendError {
+                    message: format!("String {} does not have two instances of `.", str),
+                });
+            }
+            Ok(String::from(&str[pos_1..pos_2.unwrap()]))
+        },
         false => Err(BackendError {
             message: format!("String slice does not match the format `val`: {}", str),
         })
@@ -172,13 +195,24 @@ impl IndexOf for String {
         let char_sequence: Vec<char> = sequence.chars().collect();
         let mut index = 0;
         let mut matching = false;
-        for character in self.chars().skip(from) {
+        for (pos, character) in self.chars().skip(from).enumerate() {
+            // Prevent out of bounds when doesn't exist
+            if index == char_sequence.len() {
+                break;
+            }
+
+            // Proceed through each character in the sequence and reset
             if character == char_sequence[index] {
                 matching = true;
                 index += 1;
+            } else {
+                matching = false;
+                index = 0;
             }
+
+            // If all characters matched, return the sequence
             if matching && index == char_sequence.len() {
-                return Some(index);
+                return Some(pos+from);
             }
         }
         None
@@ -194,13 +228,24 @@ impl IndexOf for &str {
         let char_sequence: Vec<char> = sequence.chars().collect();
         let mut index = 0;
         let mut matching = false;
-        for character in self.chars().skip(from) {
+        for (pos, character) in self.chars().skip(from).enumerate() {
+            // Prevent out of bounds when doesn't exist
+            if index == char_sequence.len() {
+                break;
+            }
+
+            // Proceed through each character in the sequence and reset
             if character == char_sequence[index] {
                 matching = true;
                 index += 1;
+            } else {
+                matching = false;
+                index = 0;
             }
+
+            // If all characters matched, return the sequence
             if matching && index == char_sequence.len() {
-                return Some(index);
+                return Some(pos+from);
             }
         }
         None
@@ -215,8 +260,10 @@ mod test {
     fn schema_test() {
         let schema_path = "./tests/schema.sql";
         let mut db = init(schema_path).expect("Schema test failed");
-        let table = db.get("user").expect("Schema test failed: No user table read.");
-        let field = table.get("email").expect("Schema test failed: No email field.");
+        assert!(!db.is_empty());
+        let db_string = db.to_string();
+        let table = db.get("user").unwrap_or_else(|| panic!("Schema test failed: No user table read: {}", &db_string));
+        let field = table.get("email").unwrap_or_else(|| panic!("Schema test failed: No emailread: {}", &db_string));
         assert!(field.required);
     }
 }

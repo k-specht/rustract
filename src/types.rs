@@ -86,6 +86,12 @@ pub struct FieldDesign {
     pub increment: bool,
 }
 
+impl Display for FieldDesign {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} ({})", self.title, self.datatype)
+    }
+}
+
 impl FieldDesign {
     /// Constructs a new field, defaulting to varchar(255).
     pub fn new(title: &str) -> Self {
@@ -275,11 +281,17 @@ pub struct TableDesign {
     pub fields: Vec<FieldDesign>,
 }
 
+impl Display for TableDesign {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: ({:?})", self.title, self.fields)
+    }
+}
+
 impl TableDesign {
-    pub fn new(title: &str, fields: Vec<FieldDesign>) -> Self {
+    pub fn new(title: &str) -> Self {
         TableDesign {
             title: String::from(title),
-            fields
+            fields: vec![]
         }
     }
 
