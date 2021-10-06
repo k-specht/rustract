@@ -1,4 +1,4 @@
-use crate::{error::BackendError, filesystem::read_file, types::{DataType, FieldDesign, TableDesign}};
+use crate::{error::BackendError, filesystem::read_file, types::{DataType, FieldDesign, TableDesign, IndexOf}};
 
 /// A database schema struct that can be used for testing JSON.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -99,6 +99,15 @@ impl Database {
             serde_json::to_string_pretty(self)?
         )?;
         Ok(())
+    }
+
+    /// Exports this database design to a TypeScript library of types.
+    /// 
+    /// These types can be used in the front-end to standardize routes.
+    /// Note that depending on usage, scripts using these may reveal internal Database structure.
+    pub fn export(&self, _filepath: &str) -> Result<(), BackendError> {
+        // Stub
+        todo!();
     }
 }
 
@@ -206,103 +215,9 @@ fn unwrap_str(str: &str) -> Result<String, BackendError> {
     }
 }
 
-/// Adds indexing functions to the implementing type.
-trait IndexOf {
-    /// Retrieves the first index of the specified sequence.
-    fn index_of(&self, sequence: &str) -> Option<usize>;
-
-    /// Retrieves the next index of the first sequence matched.
-    /// 
-    /// Note that 
-    fn next_index_of(&self, sequence: &str, from: usize) -> Option<usize>;
-}
-
-impl IndexOf for String {
-    fn index_of(&self, sequence: &str) -> Option<usize> {
-        self.next_index_of(sequence, 0)
-    }
-
-    fn next_index_of(&self, sequence: &str, from: usize) -> Option<usize> {
-        let char_sequence: Vec<char> = sequence.chars().collect();
-        let mut index = 0;
-        let mut matching: bool;
-        for (pos, character) in self.chars().skip(from).enumerate() {
-            // Prevent out of bounds when doesn't exist
-            if index == char_sequence.len() {
-                break;
-            }
-
-            // Proceed through each character in the sequence and reset
-            if character == char_sequence[index] {
-                matching = true;
-                index += 1;
-            } else {
-                matching = false;
-                index = 0;
-            }
-
-            // If all characters matched, return the sequence
-            if matching && index == char_sequence.len() {
-                return Some(pos+from);
-            }
-        }
-        None
-    }
-}
-
-impl IndexOf for &str {
-    fn index_of(&self, sequence: &str) -> Option<usize> {
-        self.next_index_of(sequence, 0)
-    }
-
-    fn next_index_of(&self, sequence: &str, from: usize) -> Option<usize> {
-        let char_sequence: Vec<char> = sequence.chars().collect();
-        let mut index = 0;
-        let mut matching: bool;
-        for (pos, character) in self.chars().skip(from).enumerate() {
-            // Prevent out of bounds when doesn't exist
-            if index == char_sequence.len() {
-                break;
-            }
-
-            // Proceed through each character in the sequence and reset
-            if character == char_sequence[index] {
-                matching = true;
-                index += 1;
-            } else {
-                matching = false;
-                index = 0;
-            }
-
-            // If all characters matched, return the sequence
-            if matching && index == char_sequence.len() {
-                return Some(pos+from);
-            }
-        }
-        None
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
-
-    #[test]
-    fn index_test() {
-        // Tests &str indexing
-        let index_this = "Find the (! (Hint: there's two!)";
-        let index = index_this.index_of("(").unwrap();
-
-        assert_eq!(index, 9);
-        assert_eq!(index_this.next_index_of("(", index + 1).unwrap(), 12);
-
-        // Tests String indexing
-        let index_string = String::from(index_this);
-        let index_2 = index_string.index_of("(").unwrap();
-
-        assert_eq!(index_2, 9);
-        assert_eq!(index_string.next_index_of("(", index_2 + 1).unwrap(), 12);
-    }
 
     #[test]
     fn unwrap_test() {
