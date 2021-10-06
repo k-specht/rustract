@@ -7,32 +7,31 @@ pub mod db_driver;
 pub mod types;
 pub mod filesystem;
 pub mod sql;
-use types::Config;
 use error::BackendError;
-use filesystem::{get_config, load_types};
+use filesystem::get_config;
+
+use crate::sql::Database;
 
 /// Initializes a local library based on the input settings.
-pub fn init(json_path: &str) -> Result<(), BackendError> {
+pub fn init(json_path: &str, reload_schema: bool) -> Result<Database, BackendError> {
+    // Sets up filepaths
     let config = get_config(json_path)?;
-    let tables = load_types(&config)?;
+    // let type_path = if config.type_path.is_some() { config.type_path.unwrap() } else { String::from("./types/") };
 
-    // Initialize database types if there are no types saved
-    if tables.is_empty() {
-        // Attempts to read the database type in order to parse it properly
-        match config.db_type.as_str() {
-            "SQL" => init_sql(&config)?,
-            _ => return Err(BackendError {
-                message: format!("{} is not a valid database type.", config.db_type.as_str()),
-            }),
-        };
-    }
+    // Loads the database from the path, or from the schema if no database is found
+    let db: Database = if reload_schema {
+        Database::from_schema(&config.schema_path)?
+    } else {
+        match Database::from(&config.db_path) {
+            Ok(file) => file,
+            Err(_) => Database::from_schema(&config.schema_path)?,
+        }
+    };
 
-    Ok(())
-}
+    // Saves the database to the db path to skip schema reading
+    db.save(&config.db_path)?;
 
-/// Initializes the SQL database interface.
-fn init_sql(config: &Config) -> Result<(), BackendError> {
-    db_driver::init(config)
+    Ok(db)
 }
 
 #[cfg(test)]
@@ -41,7 +40,7 @@ mod test {
 
     #[test]
     fn test_error() {
-        let error = init("");
+        let error = init("", false);
         match error {
             Ok(_) => panic!("Test failed, init function did not produce errors."),
             Err(e) => assert_eq!(e.message, "No such file or directory (os error 2)"),
@@ -52,15 +51,16 @@ mod test {
     fn read_config() {
         create_config();
         let config = get_config("./example.json").unwrap();
-        assert_eq!(config.db_path, "./example_database");
-        assert_eq!(config.db_type, "SQL");
+        assert_eq!(&config.db_path, "./example_database.json");
+        assert_eq!(&config.db_type, "SQL");
+        assert_eq!(&config.schema_path, "./tests/schema.sql");
         assert_eq!(config.type_path, None);
         delete_config();
     }
 
     /// Creates an example config file for testing purposes.
     fn create_config() {
-        let example_config = "{\n  \"db_path\":\"./example_database\",\n  \"db_type\":\"SQL\"\n}";
+        let example_config = "{\n  \"db_path\":\"./example_database.json\",\n  \"db_type\":\"SQL\"\n, \"schema_path\": \"./tests/schema.sql\"\n}";
 
         std::fs::File::create("./example_config.json")
             .expect("Failed to create config file.");

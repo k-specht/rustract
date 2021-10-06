@@ -21,7 +21,7 @@ pub fn read_file(path: &str) -> Result<String, BackendError> {
 }
 
 /// Reads types from the path specified in a config file.
-pub fn load_types(config: &Config) -> Result<Vec<TableDesign>, BackendError> {
+pub fn load_tables(config: &Config) -> Result<Vec<TableDesign>, BackendError> {
     // Gets the contents of the types directory
     let path = check_path(&config.type_path, "./types/")?;
 

@@ -15,7 +15,7 @@ use warp::Filter;
 #[tokio::test]
 async fn main() -> Result<(), BackendError> {
     // Test this library's config integration
-    init("./tests/example_config.json")?;
+    let _db = init("./tests/example_config.json", false)?;
 
     // Create a future from the warp_test function
     let future = warp_test();

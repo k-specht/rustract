@@ -10,6 +10,7 @@ use crate::error::BackendError;
 pub struct Config {
     pub db_type: String,
     pub db_path: String,
+    pub schema_path: String,
     #[serde(skip_serializing_if="Option::is_none")]
     pub type_path: Option<String>,
 }

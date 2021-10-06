@@ -1,0 +1,46 @@
+{
+  "title": null,
+  "tables": [
+    {
+      "title": "user",
+      "fields": [
+        {
+          "title": "id",
+          "datatype": "Unsigned64",
+          "bytes": 64,
+          "primary": true,
+          "unique": false,
+          "required": true,
+          "increment": true
+        },
+        {
+          "title": "name",
+          "datatype": "String",
+          "characters": 45,
+          "primary": false,
+          "unique": false,
+          "required": true,
+          "increment": false
+        },
+        {
+          "title": "email",
+          "datatype": "String",
+          "characters": 45,
+          "primary": false,
+          "unique": false,
+          "required": true,
+          "increment": false
+        },
+        {
+          "title": "date",
+          "datatype": "String",
+          "characters": 10,
+          "primary": false,
+          "unique": false,
+          "required": false,
+          "increment": false
+        }
+      ]
+    }
+  ]
+}

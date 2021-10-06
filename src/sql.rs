@@ -1,7 +1,7 @@
 use crate::{error::BackendError, filesystem::read_file, types::{DataType, FieldDesign, TableDesign}};
 
 /// A database schema struct that can be used for testing JSON.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Database {
     pub title: Option<String>,
     pub tables: Vec<TableDesign>,
@@ -53,38 +53,53 @@ impl Database {
         }
         None
     }
-}
 
-pub fn init(schema_path: &str) -> Result<Database, BackendError> {
-    let schema = read_file(schema_path)?;
-    let mut reading = false;
-    let mut db = Database::new(None);
-    let mut table_title = String::new();
+    /// Reads a Database schema from the specified filepath.
+    pub fn from_schema(schema_path: &str) -> Result<Self, BackendError> {
+        let schema = read_file(schema_path)?;
+        let mut reading = false;
+        let mut db = Database::new(None);
+        let mut table_title = String::new();
 
-    // Loop until all tables are found
-    for line_src in schema.lines() {
-        let line = line_src.trim();
-        // Only read sections that declare new tables
-        if line.contains("CREATE TABLE") {
-            reading = true;
-            table_title = read_name(line)?;
-            db.add(TableDesign::new(&table_title));
-            continue;
+        // Loop until all tables are found
+        for line_src in schema.lines() {
+            let line = line_src.trim();
+            // Only read sections that declare new tables
+            if line.contains("CREATE TABLE") {
+                reading = true;
+                table_title = read_name(line)?;
+                db.add(TableDesign::new(&table_title));
+                continue;
+            }
+
+            // Abort reading if the end of the table is reached
+            if line.starts_with(')') && line.contains(';') {
+                reading = false;
+                continue;
+            }
+
+            // Add each line to the database
+            if reading {
+                add_to_db(line, db.get(&table_title).unwrap())?;
+            }
         }
-
-        // Abort reading if the end of the table is reached
-        if line.starts_with(')') && line.contains(';') {
-            reading = false;
-            continue;
-        }
-
-        // Add each line to the database
-        if reading {
-            add_to_db(line, db.get(&table_title).unwrap())?;
-        }
+        
+        Ok(db)
     }
-    
-    Ok(db)
+
+    /// Creates an instance of this struct from the JSON file at the specified path.
+    pub fn from(filepath: &str) -> Result<Self, BackendError> {
+        Ok(serde_json::from_str(&std::fs::read_to_string(filepath)?)?)
+    }
+
+    /// Saves the configuration info to a JSON file for quick loading.
+    pub fn save(&self, filepath: &str) -> Result<(), BackendError> {
+        std::fs::write(
+            filepath,
+            serde_json::to_string_pretty(self)?
+        )?;
+        Ok(())
+    }
 }
 
 /// Attempts to read the table name from the provided schema line.
@@ -304,7 +319,7 @@ mod test {
     #[test]
     fn schema_test() {
         let schema_path = "./tests/schema.sql";
-        let mut db = init(schema_path).expect("Schema test failed");
+        let mut db = Database::from_schema(schema_path).expect("Schema test failed");
         assert!(!db.is_empty());
         let db_string = db.to_string();
         let table = db.get("user").unwrap_or_else(|| panic!("Schema test failed: No user table read: {}", &db_string));
@@ -315,7 +330,7 @@ mod test {
     #[test]
     fn reading_test() {
         // Gets the date field from the test schema
-        let db = init("./tests/schema.sql").unwrap();
+        let db = Database::from_schema("./tests/schema.sql").unwrap();
         let table_ref: &TableDesign = db.get_ref("user").unwrap();
         let field_ref: &FieldDesign = table_ref.get_ref("date").unwrap();
 
