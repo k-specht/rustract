@@ -1,6 +1,5 @@
 {
     "db_path": "./example_database.json",
-    "db_type": "SQL",
     "schema_path": "./tests/schema.sql",
     "type_path": "./types/"
 }

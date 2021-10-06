@@ -3,7 +3,6 @@
 //! Author: Käthe Specht
 //! Date: 2021-09-01
 pub mod error;
-pub mod db_driver;
 pub mod types;
 pub mod filesystem;
 pub mod sql;
@@ -52,7 +51,6 @@ mod test {
         create_config();
         let config = get_config("./example.json").unwrap();
         assert_eq!(&config.db_path, "./example_database.json");
-        assert_eq!(&config.db_type, "SQL");
         assert_eq!(&config.schema_path, "./tests/schema.sql");
         assert_eq!(config.type_path, None);
         delete_config();
@@ -60,7 +58,7 @@ mod test {
 
     /// Creates an example config file for testing purposes.
     fn create_config() {
-        let example_config = "{\n  \"db_path\":\"./example_database.json\",\n  \"db_type\":\"SQL\"\n, \"schema_path\": \"./tests/schema.sql\"\n}";
+        let example_config = "{\n  \"db_path\":\"./example_database.json\",\n \"schema_path\": \"./tests/schema.sql\"\n}";
 
         std::fs::File::create("./example_config.json")
             .expect("Failed to create config file.");
