@@ -295,9 +295,10 @@ impl TableDesign {
             fields: vec![]
         }
     }
-
     /// Tests the provided JSON values against this table's design.
-    pub fn test(&self, fields: &[Value]) -> Result<(), BackendError> {
+    /// 
+    /// Ignores the required check for any fields marked as primary or generated if input is true.
+    pub fn test(&self, fields: &[Value], input: bool) -> Result<(), BackendError> {
         // Iterates over the fields in this design and attempts to match each to the JSON
         for field_design in &self.fields {
             let mut matched = false;
@@ -312,7 +313,7 @@ impl TableDesign {
             }
 
             // If a required field is missing in the request JSON, decline it
-            if !matched && field_design.required {
+            if (!matched && field_design.required) && ((input && !field_design.primary) || !input) {
                 return Err(BackendError {
                     message: format!(
                         "The {} field is required in {}, but was not included in the request.",
@@ -588,7 +589,7 @@ mod test {
             Some(val) => val,
             None => panic!("Test failed, could not read JSON data as an array."),
         };
-        table_design.test(fields).unwrap();
+        table_design.test(fields, false).unwrap();
     }
 
     /// Creates a default TableDesign struct for use in testing.
