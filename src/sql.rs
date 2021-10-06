@@ -159,17 +159,19 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
 
 /// Pulls a value out of a sql string-wrapped slice.
 fn unwrap_str(str: &str) -> Result<String, BackendError> {
-    match str.len() > 2 && str.contains('`') {
+    match str.len() > 1 && str.contains('`') {
         true => {
-            // This unwrap should be safe since it contains this character
+            // This first unwrap should be safe since it contains this character
             let pos_1 = str.index_of("`").unwrap();
-            let pos_2 = str.next_index_of("`", pos_1);
+            let pos_2 = str.next_index_of("`", pos_1+1);
             if pos_2.is_none() {
                 return Err(BackendError {
                     message: format!("String {} does not have two instances of `.", str),
                 });
             }
-            Ok(String::from(&str[pos_1..pos_2.unwrap()]))
+
+            // This is a string slice of a &str, the unwrap is safe due to the previous check
+            Ok(str[pos_1+1..pos_2.unwrap()].to_string())
         },
         false => Err(BackendError {
             message: format!("String slice does not match the format `val`: {}", str),
@@ -194,7 +196,7 @@ impl IndexOf for String {
     fn next_index_of(&self, sequence: &str, from:usize) -> Option<usize> {
         let char_sequence: Vec<char> = sequence.chars().collect();
         let mut index = 0;
-        let mut matching = false;
+        let mut matching: bool;
         for (pos, character) in self.chars().skip(from).enumerate() {
             // Prevent out of bounds when doesn't exist
             if index == char_sequence.len() {
@@ -227,7 +229,7 @@ impl IndexOf for &str {
     fn next_index_of(&self, sequence: &str, from:usize) -> Option<usize> {
         let char_sequence: Vec<char> = sequence.chars().collect();
         let mut index = 0;
-        let mut matching = false;
+        let mut matching: bool;
         for (pos, character) in self.chars().skip(from).enumerate() {
             // Prevent out of bounds when doesn't exist
             if index == char_sequence.len() {
@@ -257,13 +259,33 @@ mod test {
     use super::*;
 
     #[test]
+    fn index_test() {
+        let index_this = "Find the (! (Hint: there's two!)";
+        let index = index_this.index_of("(").unwrap();
+        assert_eq!(index, 9);
+        assert_eq!(index_this.next_index_of("(", index+1).unwrap(), 12);
+    }
+
+    #[test]
+    fn unwrap_test() {
+        let unwrap_me = unwrap_str("I wrapped (`this`)...").expect("Failed to unwrap str: ");
+        assert_eq!(unwrap_me, String::from("this"));
+
+        // Tests empty strings
+        assert_eq!("", unwrap_str("``").unwrap());
+
+        // Tests bounds
+        assert_eq!("e", unwrap_str("`e`").unwrap());
+    }
+
+    #[test]
     fn schema_test() {
         let schema_path = "./tests/schema.sql";
         let mut db = init(schema_path).expect("Schema test failed");
         assert!(!db.is_empty());
         let db_string = db.to_string();
         let table = db.get("user").unwrap_or_else(|| panic!("Schema test failed: No user table read: {}", &db_string));
-        let field = table.get("email").unwrap_or_else(|| panic!("Schema test failed: No emailread: {}", &db_string));
+        let field = table.get("email").unwrap_or_else(|| panic!("Schema test failed: No email read: {}", &db_string));
         assert!(field.required);
     }
 }
