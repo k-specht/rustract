@@ -185,6 +185,8 @@ trait IndexOf {
     fn index_of(&self, sequence: &str) -> Option<usize>;
 
     /// Retrieves the next index of the first sequence matched.
+    /// 
+    /// Note that 
     fn next_index_of(&self, sequence: &str, from: usize) -> Option<usize>;
 }
 
@@ -193,7 +195,7 @@ impl IndexOf for String {
         self.next_index_of(sequence, 0)
     }
 
-    fn next_index_of(&self, sequence: &str, from:usize) -> Option<usize> {
+    fn next_index_of(&self, sequence: &str, from: usize) -> Option<usize> {
         let char_sequence: Vec<char> = sequence.chars().collect();
         let mut index = 0;
         let mut matching: bool;
@@ -226,7 +228,7 @@ impl IndexOf for &str {
         self.next_index_of(sequence, 0)
     }
 
-    fn next_index_of(&self, sequence: &str, from:usize) -> Option<usize> {
+    fn next_index_of(&self, sequence: &str, from: usize) -> Option<usize> {
         let char_sequence: Vec<char> = sequence.chars().collect();
         let mut index = 0;
         let mut matching: bool;
@@ -260,10 +262,19 @@ mod test {
 
     #[test]
     fn index_test() {
+        // Tests &str indexing
         let index_this = "Find the (! (Hint: there's two!)";
         let index = index_this.index_of("(").unwrap();
+
         assert_eq!(index, 9);
-        assert_eq!(index_this.next_index_of("(", index+1).unwrap(), 12);
+        assert_eq!(index_this.next_index_of("(", index + 1).unwrap(), 12);
+
+        // Tests String indexing
+        let index_string = String::from(index_this);
+        let index_2 = index_string.index_of("(").unwrap();
+
+        assert_eq!(index_2, 9);
+        assert_eq!(index_string.next_index_of("(", index_2 + 1).unwrap(), 12);
     }
 
     #[test]
