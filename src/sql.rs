@@ -32,9 +32,21 @@ impl Database {
         self.tables.push(table);
     }
 
-    /// Gets a table in this database by its title. If there are duplicates, it retrieves the first.
+    /// Gets a table in this database by its title.
+    /// If there are duplicates, it retrieves the first.
     pub fn get(&mut self, title: &str) -> Option<&mut TableDesign> {
         for table in &mut self.tables {
+            if table.title == title {
+                return Some(table);
+            }
+        }
+        None
+    }
+
+    /// Gets a reference to a table in this database by its title.
+    /// If there are duplicates, it retrieves the first.
+    pub fn get_ref(&self, title: &str) -> Option<&TableDesign> {
+        for table in &self.tables {
             if table.title == title {
                 return Some(table);
             }
@@ -135,7 +147,7 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
     if tokens[1] == "int" {
         field.datatype = if line.contains("unsigned") { DataType::Unsigned64 } else { DataType::Signed64 };
         field.increment = line.contains("AUTO_INCREMENT");
-        field.bytes = 64;
+        field.bytes = Some(64);
     } else if tokens[1].starts_with("varchar(") {
         // Pulls the size out of the varchar wrap and converts it to an integer
         field.datatype = DataType::String;
@@ -145,7 +157,7 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
                 message: format!("Schema line {} has invalid characters in varchar.", line),
             })
         };
-        field.bytes = tokens[1][8..index].parse()?;
+        field.characters = Some(tokens[1][8..index].parse()?);
     } else {
         return Err(BackendError {
             message: format!("Failed to read schema, {} is not a valid token.", tokens[1]),
@@ -298,5 +310,20 @@ mod test {
         let table = db.get("user").unwrap_or_else(|| panic!("Schema test failed: No user table read: {}", &db_string));
         let field = table.get("email").unwrap_or_else(|| panic!("Schema test failed: No email read: {}", &db_string));
         assert!(field.required);
+    }
+
+    #[test]
+    fn reading_test() {
+        // Gets the date field from the test schema
+        let db = init("./tests/schema.sql").unwrap();
+        let table_ref: &TableDesign = db.get_ref("user").unwrap();
+        let field_ref: &FieldDesign = table_ref.get_ref("date").unwrap();
+
+        // The good date is below the character limit of 10 (for ISO Strings)
+        let good = serde_json::json!({"date": "2021-01-01"});
+        let bad = serde_json::json!({"date": "2021-01-001"}); 
+
+        field_ref.test_json(&good["date"]).unwrap();
+        assert!(field_ref.test_json(&bad["date"]).is_err());
     }
 }

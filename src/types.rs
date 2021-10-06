@@ -71,7 +71,8 @@ impl Display for DataType {
 pub struct FieldDesign {
     pub title: String,
     pub datatype: DataType,
-    pub bytes: isize,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub bytes: Option<isize>,
     #[serde(skip_serializing_if="Option::is_none")]
     pub characters: Option<isize>,
     #[serde(skip_serializing_if="Option::is_none")]
@@ -98,7 +99,7 @@ impl FieldDesign {
         FieldDesign {
             title: String::from(title),
             datatype: DataType::String,
-            bytes: 255,
+            bytes: None,
             characters: None,
             decimals: None,
             regex: None,
@@ -111,7 +112,7 @@ impl FieldDesign {
     }
 
     /// Tests the provided JSON value against this field's design.
-    fn test_json(&self, json: &Value) -> Result<(), BackendError> {
+    pub fn test_json(&self, json: &Value) -> Result<(), BackendError> {
         // This match results in duplicated code, but is needed due to limitations of serde_json
         match self.datatype {
             DataType::String => {
@@ -222,17 +223,17 @@ impl FieldDesign {
     fn test_byte_length<T>(&self, value: &T) -> Result<(), BackendError>
     where T: HasBytes
     {
-        match value.byte_length() > self.bytes {
-            true => Err(BackendError {
+        if self.bytes.is_some() && value.byte_length() > self.bytes.unwrap() {
+            return Err(BackendError {
                 message: format!(
                     "Field {} is over the byte limit of {}.\n(Bytes: {}).",
                     self.title,
-                    self.bytes,
+                    self.bytes.unwrap(),
                     value.byte_length()
                 ),
-            }),
-            false => Ok(()),
+            })
         }
+        Ok(())
     }
 
     /// Attempts to downsize the given number into the specified size.
@@ -343,9 +344,21 @@ impl TableDesign {
         self.fields.push(field);
     }
 
-    /// Gets the specified field by its title. If there's a duplicate, the first is returned.
+    /// Gets the specified field by its title.
+    /// If there's a duplicate, the first is returned.
     pub fn get(&mut self, title: &str) -> Option<&mut FieldDesign> {
         for field in &mut self.fields {
+            if field.title == title {
+                return Some(field);
+            }
+        }
+        None
+    }
+
+    /// Gets a reference to the specified field by its title.
+    /// If there's a duplicate, the first is returned.
+    pub fn get_ref(&self, title: &str) -> Option<&FieldDesign> {
+        for field in &self.fields {
             if field.title == title {
                 return Some(field);
             }
@@ -490,7 +503,7 @@ mod test {
             FieldDesign {
                 title: String::from("email"),
                 datatype: DataType::String,
-                bytes: 800,
+                bytes: Some(800),
                 characters: Some(110),
                 decimals: None,
                 regex: Some(String::from("(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])")),
@@ -503,7 +516,7 @@ mod test {
             FieldDesign {
                 title: String::from("name"),
                 datatype: DataType::String,
-                bytes: 800,
+                bytes: Some(800),
                 characters: Some(100),
                 decimals: None,
                 regex: None,
