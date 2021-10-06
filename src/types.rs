@@ -313,7 +313,7 @@ impl TableDesign {
             }
 
             // If a required field is missing in the request JSON, decline it
-            if (!matched && field_design.required) && ((input && !field_design.primary) || !input) {
+            if !matched && field_design.required && (!field_design.primary || !input) {
                 return Err(BackendError {
                     message: format!(
                         "The {} field is required in {}, but was not included in the request.",
