@@ -15,7 +15,7 @@ use crate::sql::Database;
 pub fn init(json_path: &str, reload_schema: bool) -> Result<Database, BackendError> {
     // Sets up filepaths
     let config = get_config(json_path)?;
-    // let type_path = if config.type_path.is_some() { config.type_path.unwrap() } else { String::from("./types/") };
+    let type_path = if config.type_path.is_some() { config.type_path.unwrap() } else { "./types/".to_string() };
 
     // Loads the database from the path, or from the schema if no database is found
     let db: Database = if reload_schema {
@@ -29,6 +29,9 @@ pub fn init(json_path: &str, reload_schema: bool) -> Result<Database, BackendErr
 
     // Saves the database to the db path to skip schema reading
     db.save(&config.db_path)?;
+
+    // Exports the database tables to a TypeScript library
+    db.export(&type_path)?;
 
     Ok(db)
 }

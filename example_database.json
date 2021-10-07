@@ -1,10 +1,10 @@
 {
   "title": null,
-  "tables": [
-    {
-      "title": "user",
-      "fields": [
-        {
+  "tables": {
+    "user": {
+      "table_design_title": "user",
+      "fields": {
+        "id": {
           "title": "id",
           "datatype": "Unsigned64",
           "bytes": 64,
@@ -12,9 +12,9 @@
           "unique": false,
           "required": true,
           "increment": true,
-          "generated": false
+          "generated": true
         },
-        {
+        "name": {
           "title": "name",
           "datatype": "String",
           "characters": 45,
@@ -24,7 +24,7 @@
           "increment": false,
           "generated": false
         },
-        {
+        "email": {
           "title": "email",
           "datatype": "String",
           "characters": 45,
@@ -34,7 +34,7 @@
           "increment": false,
           "generated": false
         },
-        {
+        "date": {
           "title": "date",
           "datatype": "String",
           "characters": 10,
@@ -44,7 +44,7 @@
           "increment": false,
           "generated": false
         }
-      ]
+      }
     }
-  ]
+  }
 }

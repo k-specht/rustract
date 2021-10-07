@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use regex::Regex;
@@ -145,7 +146,6 @@ impl FieldDesign {
                 self.test_length::<String>(&json_string)?;
                 self.test_byte_length::<String>(&json_string)?;
                 self.test_regex(&json_string)?;
-                
             },
             DataType::ByteString => todo!(),
             DataType::JSON => todo!(),
@@ -195,6 +195,7 @@ impl FieldDesign {
                 self.test_type(json.as_bool())?;
             },
             DataType::Bit => {
+                // TODO: Refactor bit check
                 self.test_type(json.as_bool())?;
             },
             DataType::Byte => {
@@ -319,30 +320,31 @@ impl FieldDesign {
 /// TODO: Change Vector to HashMap with the titles as keys.
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct TableDesign {
-    pub title: String,
-    pub fields: Vec<FieldDesign>,
+    pub table_design_title: String,
+    pub fields: HashMap<String, FieldDesign>,
 }
 
 impl Display for TableDesign {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: ({:?})", self.title, self.fields)
+        write!(f, "{}: ({:?})", self.table_design_title, self.fields)
     }
 }
 
 impl TableDesign {
     pub fn new(title: &str) -> Self {
         TableDesign {
-            title: String::from(title),
-            fields: vec![]
+            table_design_title: String::from(title),
+            fields: HashMap::new()
         }
     }
     /// Tests the provided JSON values against this table's design.
     /// 
-    /// Ignores the required check for any fields marked as primary or generated if input is true.
+    /// Ignores the required check for any fields marked as generated if input is true.
     pub fn test(&self, fields: &[Value], input: bool) -> Result<(), BackendError> {
         // Iterates over the fields in this design and attempts to match each to the JSON
-        for field_design in &self.fields {
+        for key in self.fields.keys() {
             let mut matched = false;
+            let field_design = self.fields.get(key).unwrap();
 
             // Finds a match for this field design
             for field in fields {
@@ -359,7 +361,7 @@ impl TableDesign {
                     message: format!(
                         "The {} field is required in {}, but was not included in the request.",
                         field_design.title,
-                        self.title
+                        self.table_design_title
                     ),
                 });
             }
@@ -383,29 +385,19 @@ impl TableDesign {
 
     /// Adds the provided field to this table.
     pub fn add(&mut self, field: FieldDesign) {
-        self.fields.push(field);
-    }
-
-    /// Gets the specified field by its title.
-    /// If there's a duplicate, the first is returned.
-    pub fn get(&mut self, title: &str) -> Option<&mut FieldDesign> {
-        for field in &mut self.fields {
-            if field.title == title {
-                return Some(field);
-            }
-        }
-        None
+        self.fields.insert(field.title.clone(), field);
     }
 
     /// Gets a reference to the specified field by its title.
     /// If there's a duplicate, the first is returned.
-    pub fn get_ref(&self, title: &str) -> Option<&FieldDesign> {
-        for field in &self.fields {
-            if field.title == title {
-                return Some(field);
-            }
-        }
-        None
+    pub fn get(&self, title: &str) -> Option<&FieldDesign> {
+        self.fields.get(title)
+    }
+
+    /// Gets the specified field by its title.
+    /// If there's a duplicate, the first is returned.
+    pub fn get_mut(&mut self, title: &str) -> Option<&mut FieldDesign> {
+        self.fields.get_mut(title)
     }
 
     /// Exports this table design to a TypeScript library of types.
@@ -415,13 +407,13 @@ impl TableDesign {
     pub fn export(&self, folder: &str) -> Result<(), BackendError> {
         // Creates a filepath for this table's type file
         let new_path = if folder.ends_with('/') {
-            format!("{}{}.ts", folder, &self.title)
+            format!("{}{}.ts", folder, &self.table_design_title)
         } else {
-            format!("{}/{}.ts", folder, &self.title)
+            format!("{}/{}.ts", folder, &self.table_design_title)
         };
         let mut output = String::new();
         let mut second_output = String::new();
-        let title: &str = &capitalize(&self.title)?;
+        let title: &str = &capitalize(&self.table_design_title)?;
 
         // Creates the interface
         output += &format!("/** Generated database type for the {} table. */\n", title);
@@ -432,7 +424,7 @@ impl TableDesign {
         second_output += &format!("export interface {}Input {{\n", title);
 
         // Exports each field to this file
-        for field in self.fields.iter() {
+        for field in self.fields.values() {
             output += &field.export(false);
             second_output += &field.export(true);
         }
@@ -682,7 +674,9 @@ mod test {
 
     /// Creates a default TableDesign struct for use in testing.
     fn default_table() -> TableDesign {
-        let fields: Vec<FieldDesign> = vec![
+        let mut fields: HashMap<String, FieldDesign> = HashMap::new();
+        fields.insert(
+            String::from("id"), 
             FieldDesign {
                 title: String::from("id"),
                 datatype: DataType::Unsigned64,
@@ -696,7 +690,9 @@ mod test {
                 foreign: None,
                 increment: false,
                 generated: true
-            },
+        });
+        fields.insert(
+            String::from("email"), 
             FieldDesign {
                 title: String::from("email"),
                 datatype: DataType::String,
@@ -710,7 +706,9 @@ mod test {
                 foreign: None,
                 increment: false,
                 generated: false
-            },
+        });
+        fields.insert(
+            String::from("name"), 
             FieldDesign {
                 title: String::from("name"),
                 datatype: DataType::String,
@@ -724,10 +722,10 @@ mod test {
                 foreign: None,
                 increment: false,
                 generated: false
-            },
-        ];
+        });
+
         TableDesign {
-            title: String::from("User"),
+            table_design_title: String::from("User"),
             fields,
         }
     }

@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 use crate::{error::BackendError, filesystem::read_file, types::{DataType, FieldDesign, TableDesign, IndexOf}};
 
 /// A database schema struct that can be used for testing JSON.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Database {
     pub title: Option<String>,
-    pub tables: Vec<TableDesign>,
+    pub tables: HashMap<String, TableDesign>,
 }
 
 impl std::fmt::Display for Database {
@@ -18,7 +20,7 @@ impl Database {
     pub fn new(title: Option<String>) -> Self {
         Database {
             title,
-            tables: vec![],
+            tables: HashMap::new(),
         }
     }
 
@@ -29,29 +31,19 @@ impl Database {
 
     /// Adds the table to this database.
     pub fn add(&mut self, table: TableDesign) {
-        self.tables.push(table);
-    }
-
-    /// Gets a table in this database by its title.
-    /// If there are duplicates, it retrieves the first.
-    pub fn get(&mut self, title: &str) -> Option<&mut TableDesign> {
-        for table in &mut self.tables {
-            if table.title == title {
-                return Some(table);
-            }
-        }
-        None
+        self.tables.insert(table.table_design_title.clone(), table);
     }
 
     /// Gets a reference to a table in this database by its title.
     /// If there are duplicates, it retrieves the first.
-    pub fn get_ref(&self, title: &str) -> Option<&TableDesign> {
-        for table in &self.tables {
-            if table.title == title {
-                return Some(table);
-            }
-        }
-        None
+    pub fn get(&self, title: &str) -> Option<&TableDesign> {
+        self.tables.get(title)
+    }
+
+    /// Gets a table in this database by its title.
+    /// If there are duplicates, it retrieves the first.
+    pub fn get_mut(&mut self, title: &str) -> Option<&mut TableDesign> {
+        self.tables.get_mut(title)
     }
 
     /// Reads a Database schema from the specified filepath.
@@ -80,7 +72,7 @@ impl Database {
 
             // Add each line to the database
             if reading {
-                add_to_db(line, db.get(&table_title).unwrap())?;
+                add_to_db(line, db.get_mut(&table_title).unwrap())?;
             }
         }
         
@@ -111,7 +103,7 @@ impl Database {
     pub fn export(&self, folder: &str) -> Result<(), BackendError> {
         // Allows each table to complete saving before error is returned
         let mut err_message: Result<(), BackendError> = Ok(());
-        for table in self.tables.iter() {
+        for table in self.tables.values() {
             let result = table.export(folder);
             if result.is_err() {
                 err_message = result;
@@ -159,7 +151,7 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
         match tokens.get(2) {
             Some(val) => {
                 // Sets the requested field to primary
-                match table.get(&unwrap_str(*val)?) {
+                match table.get_mut(&unwrap_str(*val)?) {
                     Some(value) => value,
                     None => {
                         return Err(BackendError {
@@ -182,6 +174,9 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
     if tokens[1] == "int" {
         field.datatype = if line.contains("unsigned") { DataType::Unsigned64 } else { DataType::Signed64 };
         field.increment = line.contains("AUTO_INCREMENT");
+        if field.increment {
+            field.generated = true;
+        }
         field.bytes = Some(64);
     } else if tokens[1].starts_with("varchar(") {
         // Pulls the size out of the varchar wrap and converts it to an integer
@@ -245,7 +240,7 @@ mod test {
     #[test]
     fn schema_test() {
         let schema_path = "./tests/schema.sql";
-        let mut db = Database::from_schema(schema_path).expect("Schema test failed");
+        let db = Database::from_schema(schema_path).expect("Schema test failed");
         assert!(!db.is_empty());
         let db_string = db.to_string();
         let table = db.get("user").unwrap_or_else(|| panic!("Schema test failed: No user table read: {}", &db_string));
@@ -257,8 +252,8 @@ mod test {
     fn reading_test() {
         // Gets the date field from the test schema
         let db = Database::from_schema("./tests/schema.sql").unwrap();
-        let table_ref: &TableDesign = db.get_ref("user").unwrap();
-        let field_ref: &FieldDesign = table_ref.get_ref("date").unwrap();
+        let table_ref: &TableDesign = db.get("user").unwrap();
+        let field_ref: &FieldDesign = table_ref.get("date").unwrap();
 
         // The good date is below the character limit of 10 (for ISO Strings)
         let good = serde_json::json!({"date": "2021-01-01"});
