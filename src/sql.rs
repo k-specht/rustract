@@ -105,12 +105,20 @@ impl Database {
     /// 
     /// These types can be used in the front-end to standardize routes.
     /// Note that depending on usage, scripts using these may reveal internal Database structure.
-    pub fn export(&self, filepath: &str) -> Result<(), BackendError> {
+    /// This function will return the last encountered error only after processing each table.
+    /// TODO: Rename reserved word "title" to something users won't likely use in a database.
+    /// TODO: Implement the TypeScript conversion here.
+    pub fn export(&self, folder: &str) -> Result<(), BackendError> {
+        // Allows each table to complete saving before error is returned
+        let mut err_message: Result<(), BackendError> = Ok(());
         for table in self.tables.iter() {
-            table.export(filepath);
+            let result = table.export(folder);
+            if result.is_err() {
+                err_message = result;
+            }
         }
 
-        Ok(())
+        err_message
     }
 }
 
@@ -258,5 +266,11 @@ mod test {
 
         field_ref.test_json(&good["date"]).unwrap();
         assert!(field_ref.test_json(&bad["date"]).is_err());
+    }
+
+    #[test]
+    fn typescript_test() {
+        let db = Database::from_schema("./tests/schema.sql").unwrap();
+        db.export("./types/").unwrap();
     }
 }

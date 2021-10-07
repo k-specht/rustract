@@ -44,21 +44,22 @@ pub enum DataType {
 impl DataType {
     pub fn typescript(&self) -> String {
         match self {
-            DataType::String => "String",
-            DataType::ByteString => "Byte String",
-            DataType::JSON => "JSON",
-            DataType::Signed64 => "Signed 64-bit Integer",
-            DataType::Unsigned64 => "Unsigned 64-bit Integer",
-            DataType::Signed32 => "Signed 32-bit Integer",
-            DataType::Unsigned32 => "Unsigned 32-bit Integer",
-            DataType::Signed16 => "Signed 16-bit Integer",
-            DataType::Unsigned16 => "Unsigned 16-bit Integer",
-            DataType::Float64 => "64-bit Float",
-            DataType::Float32 => "32-bit Float",
-            DataType::Boolean => "Boolean",
-            DataType::Bit => "Bit",
-            DataType::Byte => "Byte",
-            DataType::Enum => "Enum",
+            DataType::String => "string",
+            DataType::ByteString => "[]",
+            DataType::JSON => "string",
+            DataType::Signed64 => "number",
+            DataType::Unsigned64 => "number",
+            DataType::Signed32 => "number",
+            DataType::Unsigned32 => "number",
+            DataType::Signed16 => "number",
+            DataType::Unsigned16 => "number",
+            DataType::Float64 => "number",
+            DataType::Float32 => "number",
+            DataType::Boolean => "bool",
+            DataType::Bit => "number",
+            DataType::Byte => "number",
+            // TODO: This might need its own type
+            DataType::Enum => "enum",
         }.to_string()
     }
 }
@@ -297,13 +298,13 @@ impl FieldDesign {
     }
 
     /// Exports this field to a String containing TypeScript.
-    pub fn export(&self) -> String {
+    pub fn export(&self, input: bool) -> String {
         let mut output = String::new();
         output += "  ";
         output += &self.title;
+        output += if input || !self.required { "?" } else { "" };
         output += ": ";
         output += &self.datatype.typescript();
-        output += if !self.required || self.primary { "?" } else { "" };
         output += ",\n";
         output
     }
@@ -405,24 +406,34 @@ impl TableDesign {
     /// 
     /// These types can be used in the front-end to standardize routes.
     /// Note that depending on usage, scripts using these may reveal internal Database structure.
-    pub fn export(&self, filepath: &str) -> Result<(), BackendError> {
+    pub fn export(&self, folder: &str) -> Result<(), BackendError> {
         // Creates a filepath for this table's type file
-        let new_path = if filepath.ends_with('/') {
-            String::from(filepath) + &self.title
-        } else { format!("{}/{}", filepath, self.title) };
+        let new_path = if folder.ends_with('/') {
+            format!("{}{}.ts", folder, &self.title)
+        } else {
+            format!("{}/{}.ts", folder, &self.title)
+        };
         let mut output = String::new();
+        let mut second_output = String::new();
+        let title: &str = &capitalize(&self.title)?;
 
         // Creates the interface
-        output += "interface ";
-        output += &self.title;
-        output += " {\n";
+        output += &format!("/** Generated database type for the {} table. */\n", title);
+        output += &format!("export interface {} {{\n", title);
+
+        // Creates an input version of the interface
+        second_output += &format!("/** Generated database type for the {} table. (Input version) */\n", title);
+        second_output += &format!("export interface {}Input {{\n", title);
 
         // Exports each field to this file
         for field in self.fields.iter() {
-            output += &field.export();
+            output += &field.export(false);
+            second_output += &field.export(true);
         }
 
-        output += "}";
+        output += "}\n\n";
+        second_output += "}\n";
+        output += &second_output;
 
         std::fs::write(new_path, output)?;
         Ok(())
@@ -582,6 +593,16 @@ impl IndexOf for &str {
             }
         }
         None
+    }
+}
+
+fn capitalize(string: &str) -> Result<String, BackendError> {
+    return if string.is_empty() {
+        Err(BackendError {
+            message: "Cannot capitalize an empty string.".to_string(),
+        })
+    } else {
+        Ok(format!("{}{}", &string[0..1].to_uppercase(), &string[1..string.len()]))
     }
 }
 
