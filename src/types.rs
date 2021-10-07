@@ -108,6 +108,7 @@ pub struct FieldDesign {
     #[serde(skip_serializing_if="Option::is_none")]
     pub foreign: Option<String>,
     pub increment: bool,
+    pub generated: bool
 }
 
 impl Display for FieldDesign {
@@ -131,6 +132,7 @@ impl FieldDesign {
             required: false,
             foreign: None,
             increment: false,
+            generated: false
         }
     }
 
@@ -298,11 +300,13 @@ impl FieldDesign {
     }
 
     /// Exports this field to a String containing TypeScript.
+    /// 
+    /// TODO: Decide whether to make this exclude generated fields altogether with input.
     pub fn export(&self, input: bool) -> String {
         let mut output = String::new();
         output += "  ";
         output += &self.title;
-        output += if input || !self.required { "?" } else { "" };
+        output += if (input && self.generated) || !self.required { "?" } else { "" };
         output += ": ";
         output += &self.datatype.typescript();
         output += ",\n";
@@ -311,6 +315,8 @@ impl FieldDesign {
 }
 
 /// Describes a database table's design.
+/// 
+/// TODO: Change Vector to HashMap with the titles as keys.
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct TableDesign {
     pub title: String,
@@ -348,7 +354,7 @@ impl TableDesign {
             }
 
             // If a required field is missing in the request JSON, decline it
-            if !matched && field_design.required && (!field_design.primary || !input) {
+            if !matched && field_design.required && (!field_design.generated || !input) {
                 return Err(BackendError {
                     message: format!(
                         "The {} field is required in {}, but was not included in the request.",
@@ -671,12 +677,26 @@ mod test {
             Some(val) => val,
             None => panic!("Test failed, could not read JSON data as an array."),
         };
-        table_design.test(fields, false).unwrap();
+        table_design.test(fields, true).unwrap();
     }
 
     /// Creates a default TableDesign struct for use in testing.
     fn default_table() -> TableDesign {
         let fields: Vec<FieldDesign> = vec![
+            FieldDesign {
+                title: String::from("id"),
+                datatype: DataType::Unsigned64,
+                bytes: Some(64),
+                characters: None,
+                decimals: None,
+                regex: None,
+                primary: true,
+                unique: true,
+                required: true,
+                foreign: None,
+                increment: false,
+                generated: true
+            },
             FieldDesign {
                 title: String::from("email"),
                 datatype: DataType::String,
@@ -688,7 +708,8 @@ mod test {
                 unique: false,
                 required: true,
                 foreign: None,
-                increment: false
+                increment: false,
+                generated: false
             },
             FieldDesign {
                 title: String::from("name"),
@@ -702,6 +723,7 @@ mod test {
                 required: false,
                 foreign: None,
                 increment: false,
+                generated: false
             },
         ];
         TableDesign {

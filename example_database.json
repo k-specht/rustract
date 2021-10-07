@@ -11,7 +11,8 @@
           "primary": true,
           "unique": false,
           "required": true,
-          "increment": true
+          "increment": true,
+          "generated": false
         },
         {
           "title": "name",
@@ -20,7 +21,8 @@
           "primary": false,
           "unique": false,
           "required": true,
-          "increment": false
+          "increment": false,
+          "generated": false
         },
         {
           "title": "email",
@@ -29,7 +31,8 @@
           "primary": false,
           "unique": false,
           "required": true,
-          "increment": false
+          "increment": false,
+          "generated": false
         },
         {
           "title": "date",
@@ -38,7 +41,8 @@
           "primary": false,
           "unique": false,
           "required": false,
-          "increment": false
+          "increment": false,
+          "generated": false
         }
       ]
     }
