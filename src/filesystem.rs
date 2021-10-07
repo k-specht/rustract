@@ -43,7 +43,7 @@ pub fn load_tables(config: &Config) -> Result<Vec<TableDesign>, BackendError> {
 }
 
 /// Reads the provided directory's contents or creates it and reads the new one.
-fn check_path(path: &Option<String>, default: &str) -> Result<ReadDir, BackendError> {
+pub fn check_path(path: &Option<String>, default: &str) -> Result<ReadDir, BackendError> {
     Ok(match path {
         Some(path) => {
             if !Path::new(path).is_dir() {

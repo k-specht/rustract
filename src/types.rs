@@ -41,6 +41,28 @@ pub enum DataType {
     Enum
 }
 
+impl DataType {
+    pub fn typescript(&self) -> String {
+        match self {
+            DataType::String => "String",
+            DataType::ByteString => "Byte String",
+            DataType::JSON => "JSON",
+            DataType::Signed64 => "Signed 64-bit Integer",
+            DataType::Unsigned64 => "Unsigned 64-bit Integer",
+            DataType::Signed32 => "Signed 32-bit Integer",
+            DataType::Unsigned32 => "Unsigned 32-bit Integer",
+            DataType::Signed16 => "Signed 16-bit Integer",
+            DataType::Unsigned16 => "Unsigned 16-bit Integer",
+            DataType::Float64 => "64-bit Float",
+            DataType::Float32 => "32-bit Float",
+            DataType::Boolean => "Boolean",
+            DataType::Bit => "Bit",
+            DataType::Byte => "Byte",
+            DataType::Enum => "Enum",
+        }.to_string()
+    }
+}
+
 impl Display for DataType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", match self {
@@ -273,6 +295,18 @@ impl FieldDesign {
 
         Ok(())
     }
+
+    /// Exports this field to a String containing TypeScript.
+    pub fn export(&self) -> String {
+        let mut output = String::new();
+        output += "  ";
+        output += &self.title;
+        output += ": ";
+        output += &self.datatype.typescript();
+        output += if !self.required || self.primary { "?" } else { "" };
+        output += ",\n";
+        output
+    }
 }
 
 /// Describes a database table's design.
@@ -365,6 +399,33 @@ impl TableDesign {
             }
         }
         None
+    }
+
+    /// Exports this table design to a TypeScript library of types.
+    /// 
+    /// These types can be used in the front-end to standardize routes.
+    /// Note that depending on usage, scripts using these may reveal internal Database structure.
+    pub fn export(&self, filepath: &str) -> Result<(), BackendError> {
+        // Creates a filepath for this table's type file
+        let new_path = if filepath.ends_with('/') {
+            String::from(filepath) + &self.title
+        } else { format!("{}/{}", filepath, self.title) };
+        let mut output = String::new();
+
+        // Creates the interface
+        output += "interface ";
+        output += &self.title;
+        output += " {\n";
+
+        // Exports each field to this file
+        for field in self.fields.iter() {
+            output += &field.export();
+        }
+
+        output += "}";
+
+        std::fs::write(new_path, output)?;
+        Ok(())
     }
 }
 

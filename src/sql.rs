@@ -105,9 +105,12 @@ impl Database {
     /// 
     /// These types can be used in the front-end to standardize routes.
     /// Note that depending on usage, scripts using these may reveal internal Database structure.
-    pub fn export(&self, _filepath: &str) -> Result<(), BackendError> {
-        // Stub
-        todo!();
+    pub fn export(&self, filepath: &str) -> Result<(), BackendError> {
+        for table in self.tables.iter() {
+            table.export(filepath);
+        }
+
+        Ok(())
     }
 }
 
