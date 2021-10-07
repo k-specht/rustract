@@ -4,16 +4,6 @@
     "user": {
       "table_design_title": "user",
       "fields": {
-        "email": {
-          "field_design_title": "email",
-          "datatype": "String",
-          "characters": 45,
-          "primary": false,
-          "unique": false,
-          "required": true,
-          "increment": false,
-          "generated": false
-        },
         "id": {
           "field_design_title": "id",
           "datatype": "Unsigned64",
@@ -24,16 +14,6 @@
           "increment": true,
           "generated": true
         },
-        "date": {
-          "field_design_title": "date",
-          "datatype": "String",
-          "characters": 10,
-          "primary": false,
-          "unique": false,
-          "required": false,
-          "increment": false,
-          "generated": false
-        },
         "name": {
           "field_design_title": "name",
           "datatype": "String",
@@ -41,6 +21,26 @@
           "primary": false,
           "unique": false,
           "required": true,
+          "increment": false,
+          "generated": false
+        },
+        "email": {
+          "field_design_title": "email",
+          "datatype": "String",
+          "characters": 45,
+          "primary": false,
+          "unique": false,
+          "required": true,
+          "increment": false,
+          "generated": false
+        },
+        "date": {
+          "field_design_title": "date",
+          "datatype": "String",
+          "characters": 10,
+          "primary": false,
+          "unique": false,
+          "required": false,
           "increment": false,
           "generated": false
         }
