@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{error::BackendError, filesystem::read_file, types::{DataType, FieldDesign, TableDesign, IndexOf}};
+use crate::{error::BackendError, field::FieldDesign, filesystem::read_file, table::TableDesign, types::{DataType, IndexOf}};
 
 /// A database schema struct that can be used for testing JSON.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

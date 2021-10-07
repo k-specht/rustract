@@ -1,8 +1,5 @@
-use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
-use regex::Regex;
-use serde_json::Value;
 use serde::{Serialize,Deserialize};
 use crate::error::BackendError;
 
@@ -21,7 +18,7 @@ pub enum DataType {
     // String
     String,
     ByteString,
-    JSON,
+    Json,
     
     // Integer
     Signed64,
@@ -47,7 +44,7 @@ impl DataType {
         match self {
             DataType::String => "string",
             DataType::ByteString => "[]",
-            DataType::JSON => "string",
+            DataType::Json => "string",
             DataType::Signed64 => "number",
             DataType::Unsigned64 => "number",
             DataType::Signed32 => "number",
@@ -70,7 +67,7 @@ impl Display for DataType {
         write!(f, "{}", match self {
             DataType::String => "String",
             DataType::ByteString => "Byte String",
-            DataType::JSON => "JSON",
+            DataType::Json => "JSON",
             DataType::Signed64 => "Signed 64-bit Integer",
             DataType::Unsigned64 => "Unsigned 64-bit Integer",
             DataType::Signed32 => "Signed 32-bit Integer",
@@ -87,359 +84,8 @@ impl Display for DataType {
     }
 }
 
-/// Describes a database table field's design.
-/// 
-/// This may be more strict than the database allows,
-/// but this allows more compatibility and type safety.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
-pub struct FieldDesign {
-    pub field_design_title: String,
-    pub datatype: DataType,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub bytes: Option<isize>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub characters: Option<isize>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub decimals: Option<isize>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub regex: Option<String>,
-    pub primary: bool,
-    pub unique: bool,
-    pub required: bool,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub foreign: Option<String>,
-    pub increment: bool,
-    pub generated: bool
-}
-
-impl Display for FieldDesign {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({})", self.field_design_title, self.datatype)
-    }
-}
-
-impl FieldDesign {
-    /// Constructs a new field, defaulting to varchar(255).
-    pub fn new(title: &str) -> Self {
-        FieldDesign {
-            field_design_title: String::from(title),
-            datatype: DataType::String,
-            bytes: None,
-            characters: None,
-            decimals: None,
-            regex: None,
-            primary: false,
-            unique: false,
-            required: false,
-            foreign: None,
-            increment: false,
-            generated: false
-        }
-    }
-
-    /// Tests the provided JSON value against this field's design.
-    pub fn test_json(&self, json: &Value) -> Result<(), BackendError> {
-        // This match results in duplicated code, but is needed due to limitations of serde_json
-        match self.datatype {
-            DataType::String => {
-                let json_string = String::from(self.test_type(json.as_str())?);
-                self.test_length::<String>(&json_string)?;
-                self.test_byte_length::<String>(&json_string)?;
-                self.test_regex(&json_string)?;
-            },
-            DataType::ByteString => todo!(),
-            DataType::JSON => todo!(),
-            DataType::Signed64 => {
-                let json_int = self.test_type(json.as_i64())?;
-                self.test_length::<i64>(&json_int)?;
-            },
-            DataType::Unsigned64 => {
-                let json_int = self.test_type(json.as_u64())?;
-                self.test_length::<u64>(&json_int)?;
-            },
-            DataType::Signed32 => {
-                let json_int = self.test_type(json.as_i64())?;
-                self.test_length::<i32>(
-                    &self.downsize::<i32,i64>(
-                        json_int,
-                    )?
-                )?;
-            },
-            DataType::Unsigned32 => {
-                let json_int = self.test_type(json.as_u64())?;
-                self.test_length::<u32>(
-                    &self.downsize::<u32,u64>(
-                        json_int,
-                    )?
-                )?;
-            },
-            DataType::Signed16 => {
-                let json_int = self.test_type(json.as_i64())?;
-                self.test_length::<i16>(
-                    &self.downsize::<i16,i64>(
-                        json_int,
-                    )?
-                )?;
-            },
-            DataType::Unsigned16 => {
-                let json_int = self.test_type(json.as_u64())?;
-                self.test_length::<u16>(
-                    &self.downsize::<u16,u64>(
-                        json_int,
-                    )?
-                )?;
-            },
-            DataType::Float64 => todo!(),
-            DataType::Float32 => todo!(),
-            DataType::Boolean => {
-                self.test_type(json.as_bool())?;
-            },
-            DataType::Bit => {
-                // TODO: Refactor bit check
-                self.test_type(json.as_bool())?;
-            },
-            DataType::Byte => {
-                let json_int = self.test_type(json.as_u64())?;
-                self.test_length::<u8>(
-                    &self.downsize::<u8,u64>(
-                        json_int,
-                    )?
-                )?;
-            },
-            DataType::Enum => todo!()
-        };
-        Ok(())
-    }
-
-    /// Unwraps the Option-wrapped Serde value along with a relevant error message.
-    fn test_type<T>(&self, value: Option<T>) -> Result<T, BackendError> {
-        match value {
-            Some(val) => Ok(val),
-            None => Err(BackendError {
-                message: format!(
-                    "Field {} is not of type {}. (JSON cast failed).",
-                    self.field_design_title,
-                    self.datatype
-                ),
-            }),
-        }
-    }
-
-    /// Tests the length (digits or chars) of the given struct against this field's limit.
-    fn test_length<T>(&self, value: &T) -> Result<(), BackendError>
-    where T: HasLength
-    {
-        if let Some(max) = self.characters {
-            match value.length() > max {
-                true => return Err(BackendError {
-                    message: format!(
-                        "Field {} is over the size limit of {}.\n(Size: {}).",
-                        self.field_design_title,
-                        max,
-                        value.length()
-                    ),
-                }),
-                false => return Ok(())
-            }
-        }
-        Ok(())
-    }
-
-    /// Tests the byte length of the given struct against this field's limit.
-    fn test_byte_length<T>(&self, value: &T) -> Result<(), BackendError>
-    where T: HasBytes
-    {
-        if self.bytes.is_some() && value.byte_length() > self.bytes.unwrap() {
-            return Err(BackendError {
-                message: format!(
-                    "Field {} is over the byte limit of {}.\n(Bytes: {}).",
-                    self.field_design_title,
-                    self.bytes.unwrap(),
-                    value.byte_length()
-                ),
-            })
-        }
-        Ok(())
-    }
-
-    /// Attempts to downsize the given number into the specified size.
-    fn downsize<T, E>(&self, value: E) -> Result<T, BackendError>
-    where E: Copy + std::convert::TryInto<T>
-    {
-        match value.try_into() {
-            Ok(val) => Ok(val),
-            Err(_) => Err(BackendError {
-                message: format!(
-                    "Field {} is over the byte limit for type {}.",
-                    self.field_design_title,
-                    self.datatype
-                ),
-            }),
-        }
-    }
-
-    /// Tests the given struct against this field's regex restrictions.
-    fn test_regex<T>(&self, value: &T) -> Result<(), BackendError>
-    where T: AsRef<str>
-    {
-        if let Some(val) = &self.regex {
-            // TODO: Implement Serialize/Deserialize traits for Regex to remove runtime cost.
-            let regex = Regex::new(val)?;
-
-            if !regex.is_match(value.as_ref()) {
-                return Err(BackendError {
-                    message: format!(
-                        "Field {} failed to match the regex restriction of {}.",
-                        self.field_design_title,
-                        regex.to_string()
-                    ),
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Exports this field to a String containing TypeScript.
-    /// 
-    /// TODO: Decide whether to make this exclude generated fields altogether with input.
-    pub fn export(&self, input: bool) -> String {
-        let mut output = String::new();
-        output += "  ";
-        output += &self.field_design_title;
-        output += if (input && self.generated) || !self.required { "?" } else { "" };
-        output += ": ";
-        output += &self.datatype.typescript();
-        output += ",\n";
-        output
-    }
-}
-
-/// Describes a database table's design.
-/// 
-/// TODO: Change Vector to HashMap with the titles as keys.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
-pub struct TableDesign {
-    pub table_design_title: String,
-    pub fields: HashMap<String, FieldDesign>,
-}
-
-impl Display for TableDesign {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: ({:?})", self.table_design_title, self.fields)
-    }
-}
-
-impl TableDesign {
-    pub fn new(title: &str) -> Self {
-        TableDesign {
-            table_design_title: String::from(title),
-            fields: HashMap::new()
-        }
-    }
-    /// Tests the provided JSON values against this table's design.
-    /// 
-    /// Ignores the required check for any fields marked as generated if input is true.
-    pub fn test(&self, fields: &[Value], input: bool) -> Result<(), BackendError> {
-        // Iterates over the fields in this design and attempts to match each to the JSON
-        for key in self.fields.keys() {
-            let mut matched = false;
-            let field_design = self.fields.get(key).unwrap();
-
-            // Finds a match for this field design
-            for field in fields {
-                if let Some(val) = field.get(&field_design.field_design_title) {
-                    matched = true;
-                    field_design.test_json(val)?;
-                    break;
-                }
-            }
-
-            // If a required field is missing in the request JSON, decline it
-            if !matched && field_design.required && (!field_design.generated || !input) {
-                return Err(BackendError {
-                    message: format!(
-                        "The {} field is required in {}, but was not included in the request.",
-                        field_design.field_design_title,
-                        self.table_design_title
-                    ),
-                });
-            }
-        }
-        Ok(())
-    }
-
-    /// Saves the configuration info to a JSON file for quick loading.
-    pub fn save(&self, filepath: &str) -> Result<(), BackendError> {
-        std::fs::write(
-            filepath,
-            serde_json::to_string_pretty(self)?
-        )?;
-        Ok(())
-    }
-
-    /// Creates an instance of this struct from the JSON file at the specified path.
-    pub fn from(filepath: &str) -> Result<Self, BackendError> {
-        Ok(serde_json::from_str(&std::fs::read_to_string(filepath)?)?)
-    }
-
-    /// Adds the provided field to this table.
-    pub fn add(&mut self, field: FieldDesign) {
-        self.fields.insert(field.field_design_title.clone(), field);
-    }
-
-    /// Gets a reference to the specified field by its title.
-    /// If there's a duplicate, the first is returned.
-    pub fn get(&self, title: &str) -> Option<&FieldDesign> {
-        self.fields.get(title)
-    }
-
-    /// Gets the specified field by its title.
-    /// If there's a duplicate, the first is returned.
-    pub fn get_mut(&mut self, title: &str) -> Option<&mut FieldDesign> {
-        self.fields.get_mut(title)
-    }
-
-    /// Exports this table design to a TypeScript library of types.
-    /// 
-    /// These types can be used in the front-end to standardize routes.
-    /// Note that depending on usage, scripts using these may reveal internal Database structure.
-    pub fn export(&self, folder: &str) -> Result<(), BackendError> {
-        // Creates a filepath for this table's type file
-        let new_path = if folder.ends_with('/') {
-            format!("{}{}.ts", folder, &self.table_design_title)
-        } else {
-            format!("{}/{}.ts", folder, &self.table_design_title)
-        };
-        let mut output = String::new();
-        let mut second_output = String::new();
-        let title: &str = &capitalize(&self.table_design_title)?;
-
-        // Creates the interface
-        output += &format!("/** Generated database type for the {} table. */\n", title);
-        output += &format!("export interface {} {{\n", title);
-
-        // Creates an input version of the interface
-        second_output += &format!("/** Generated database type for the {} table. (Input version) */\n", title);
-        second_output += &format!("export interface {}Input {{\n", title);
-
-        // Exports each field to this file
-        for field in self.fields.values() {
-            output += &field.export(false);
-            second_output += &field.export(true);
-        }
-
-        output += "}\n\n";
-        second_output += "}\n";
-        output += &second_output;
-
-        std::fs::write(new_path, output)?;
-        Ok(())
-    }
-}
-
 /// Retrieves the number of digits of a generic number.
-fn digits<T>(num: &T) -> usize
+pub fn digits<T>(num: &T) -> usize
 where T: std::ops::DivAssign + std::cmp::PartialOrd + From<u8> + Copy
 {
     let mut len = 0;
@@ -455,11 +101,11 @@ where T: std::ops::DivAssign + std::cmp::PartialOrd + From<u8> + Copy
     len
 }
 
-trait HasLength {
+pub trait HasLength {
     fn length(&self) -> isize;
 }
 
-trait HasBytes {
+pub trait HasBytes {
     fn byte_length(&self) -> isize;
 }
 
@@ -594,7 +240,7 @@ impl IndexOf for &str {
     }
 }
 
-fn capitalize(string: &str) -> Result<String, BackendError> {
+pub fn capitalize(string: &str) -> Result<String, BackendError> {
     return if string.is_empty() {
         Err(BackendError {
             message: "Cannot capitalize an empty string.".to_string(),
@@ -606,7 +252,8 @@ fn capitalize(string: &str) -> Result<String, BackendError> {
 
 #[cfg(test)]
 mod test {
-    use crate::filesystem::{delete_file, read_file};
+
+    use regex::Regex;
 
     use super::*;
 
@@ -637,96 +284,5 @@ mod test {
 
         assert!(regex.is_match(good_email));
         assert!(!regex.is_match(bad_email));
-    }
-
-    #[test]
-    fn table_test() {
-        let filepath = String::from("./tests/test_type.json");
-        let table_design = default_table();
-        table_design.save(&filepath).unwrap();
-        let string_form = read_file(&filepath).unwrap();
-        delete_file(&filepath).unwrap();
-        let new_table: TableDesign = serde_json::from_str(&string_form).unwrap();
-        assert_eq!(table_design, new_table);
-    }
-
-    #[test]
-    fn table_data_test() {
-        let table_design = default_table();
-        let json = serde_json::json!({
-            "code": 200,
-            "success": true,
-            "payload": {
-                "fields": [
-                    {
-                        "title": "User",
-                        "email": "test@test.com"
-                    },
-                ]
-            }
-        });
-        let fields = match json["payload"]["fields"].as_array() {
-            Some(val) => val,
-            None => panic!("Test failed, could not read JSON data as an array."),
-        };
-        table_design.test(fields, true).unwrap();
-    }
-
-    /// Creates a default TableDesign struct for use in testing.
-    fn default_table() -> TableDesign {
-        let mut fields: HashMap<String, FieldDesign> = HashMap::new();
-        fields.insert(
-            String::from("id"), 
-            FieldDesign {
-                field_design_title: String::from("id"),
-                datatype: DataType::Unsigned64,
-                bytes: Some(64),
-                characters: None,
-                decimals: None,
-                regex: None,
-                primary: true,
-                unique: true,
-                required: true,
-                foreign: None,
-                increment: false,
-                generated: true
-        });
-        fields.insert(
-            String::from("email"), 
-            FieldDesign {
-                field_design_title: String::from("email"),
-                datatype: DataType::String,
-                bytes: Some(800),
-                characters: Some(110),
-                decimals: None,
-                regex: Some(String::from("(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])")),
-                primary: false,
-                unique: false,
-                required: true,
-                foreign: None,
-                increment: false,
-                generated: false
-        });
-        fields.insert(
-            String::from("name"), 
-            FieldDesign {
-                field_design_title: String::from("name"),
-                datatype: DataType::String,
-                bytes: Some(800),
-                characters: Some(100),
-                decimals: None,
-                regex: None,
-                primary: false,
-                unique: false,
-                required: false,
-                foreign: None,
-                increment: false,
-                generated: false
-        });
-
-        TableDesign {
-            table_design_title: String::from("User"),
-            fields,
-        }
     }
 }

@@ -3,13 +3,15 @@
 //! Author: Käthe Specht
 //! Date: 2021-09-01
 pub mod error;
-pub mod types;
-pub mod filesystem;
-pub mod sql;
+pub mod db;
+pub mod table;
+pub mod field;
+mod types;
+mod filesystem;
 use error::BackendError;
 use filesystem::get_config;
 
-use crate::sql::Database;
+use crate::db::Database;
 
 /// Initializes a local library based on the input settings.
 pub fn init(json_path: &str, reload_schema: bool) -> Result<Database, BackendError> {
