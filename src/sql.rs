@@ -168,7 +168,7 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
             }
         }
     }
-    field.title = unwrap_str(tokens[0])?;
+    field.field_design_title = unwrap_str(tokens[0])?;
 
     // Sets the data type and related fields
     if tokens[1] == "int" {

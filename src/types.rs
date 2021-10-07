@@ -93,7 +93,7 @@ impl Display for DataType {
 /// but this allows more compatibility and type safety.
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct FieldDesign {
-    pub title: String,
+    pub field_design_title: String,
     pub datatype: DataType,
     #[serde(skip_serializing_if="Option::is_none")]
     pub bytes: Option<isize>,
@@ -114,7 +114,7 @@ pub struct FieldDesign {
 
 impl Display for FieldDesign {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({})", self.title, self.datatype)
+        write!(f, "{} ({})", self.field_design_title, self.datatype)
     }
 }
 
@@ -122,7 +122,7 @@ impl FieldDesign {
     /// Constructs a new field, defaulting to varchar(255).
     pub fn new(title: &str) -> Self {
         FieldDesign {
-            title: String::from(title),
+            field_design_title: String::from(title),
             datatype: DataType::String,
             bytes: None,
             characters: None,
@@ -218,7 +218,7 @@ impl FieldDesign {
             None => Err(BackendError {
                 message: format!(
                     "Field {} is not of type {}. (JSON cast failed).",
-                    self.title,
+                    self.field_design_title,
                     self.datatype
                 ),
             }),
@@ -234,7 +234,7 @@ impl FieldDesign {
                 true => return Err(BackendError {
                     message: format!(
                         "Field {} is over the size limit of {}.\n(Size: {}).",
-                        self.title,
+                        self.field_design_title,
                         max,
                         value.length()
                     ),
@@ -253,7 +253,7 @@ impl FieldDesign {
             return Err(BackendError {
                 message: format!(
                     "Field {} is over the byte limit of {}.\n(Bytes: {}).",
-                    self.title,
+                    self.field_design_title,
                     self.bytes.unwrap(),
                     value.byte_length()
                 ),
@@ -271,7 +271,7 @@ impl FieldDesign {
             Err(_) => Err(BackendError {
                 message: format!(
                     "Field {} is over the byte limit for type {}.",
-                    self.title,
+                    self.field_design_title,
                     self.datatype
                 ),
             }),
@@ -290,7 +290,7 @@ impl FieldDesign {
                 return Err(BackendError {
                     message: format!(
                         "Field {} failed to match the regex restriction of {}.",
-                        self.title,
+                        self.field_design_title,
                         regex.to_string()
                     ),
                 });
@@ -306,7 +306,7 @@ impl FieldDesign {
     pub fn export(&self, input: bool) -> String {
         let mut output = String::new();
         output += "  ";
-        output += &self.title;
+        output += &self.field_design_title;
         output += if (input && self.generated) || !self.required { "?" } else { "" };
         output += ": ";
         output += &self.datatype.typescript();
@@ -348,7 +348,7 @@ impl TableDesign {
 
             // Finds a match for this field design
             for field in fields {
-                if let Some(val) = field.get(&field_design.title) {
+                if let Some(val) = field.get(&field_design.field_design_title) {
                     matched = true;
                     field_design.test_json(val)?;
                     break;
@@ -360,7 +360,7 @@ impl TableDesign {
                 return Err(BackendError {
                     message: format!(
                         "The {} field is required in {}, but was not included in the request.",
-                        field_design.title,
+                        field_design.field_design_title,
                         self.table_design_title
                     ),
                 });
@@ -385,7 +385,7 @@ impl TableDesign {
 
     /// Adds the provided field to this table.
     pub fn add(&mut self, field: FieldDesign) {
-        self.fields.insert(field.title.clone(), field);
+        self.fields.insert(field.field_design_title.clone(), field);
     }
 
     /// Gets a reference to the specified field by its title.
@@ -678,7 +678,7 @@ mod test {
         fields.insert(
             String::from("id"), 
             FieldDesign {
-                title: String::from("id"),
+                field_design_title: String::from("id"),
                 datatype: DataType::Unsigned64,
                 bytes: Some(64),
                 characters: None,
@@ -694,7 +694,7 @@ mod test {
         fields.insert(
             String::from("email"), 
             FieldDesign {
-                title: String::from("email"),
+                field_design_title: String::from("email"),
                 datatype: DataType::String,
                 bytes: Some(800),
                 characters: Some(110),
@@ -710,7 +710,7 @@ mod test {
         fields.insert(
             String::from("name"), 
             FieldDesign {
-                title: String::from("name"),
+                field_design_title: String::from("name"),
                 datatype: DataType::String,
                 bytes: Some(800),
                 characters: Some(100),
