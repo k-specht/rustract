@@ -17,3 +17,4 @@ Cargo.lock
 # Custom
 /types
 **/example_database.json
+**/node_modules/
