@@ -26,6 +26,8 @@ async fn main() -> Result<(), BackendError> {
     // This seems odd, but if the warp test fails the server should have exited before the timeout
     assert!(result.is_err());
 
+    std::fs::remove_file("./tests/example_database.json").unwrap();
+
     Ok(())
 }
 

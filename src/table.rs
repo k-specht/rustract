@@ -14,6 +14,7 @@ use crate::types::capitalize;
 pub struct TableDesign {
     pub table_design_title: String,
     pub fields: HashMap<String, FieldDesign>,
+    order: Vec<String>
 }
 
 impl Display for TableDesign {
@@ -26,9 +27,11 @@ impl TableDesign {
     pub fn new(title: &str) -> Self {
         TableDesign {
             table_design_title: String::from(title),
-            fields: HashMap::new()
+            fields: HashMap::new(),
+            order: vec![]
         }
     }
+
     /// Tests the provided JSON values against this table's design.
     /// 
     /// Ignores the required check for any fields marked as generated if input is true.
@@ -77,7 +80,10 @@ impl TableDesign {
 
     /// Adds the provided field to this table.
     pub fn add(&mut self, field: FieldDesign) {
-        self.fields.insert(field.field_design_title.clone(), field);
+        let title = field.field_design_title.clone();
+        self.fields.insert(title.clone(), field);
+        self.order.push(title);
+
     }
 
     /// Gets a reference to the specified field by its title.
@@ -116,7 +122,8 @@ impl TableDesign {
         second_output += &format!("export interface {}Input {{\n", title);
 
         // Exports each field to this file
-        for field in self.fields.values() {
+        for key in &self.order {
+            let field = self.get(key).unwrap();
             output += &field.export(false);
             second_output += &field.export(true);
         }
@@ -170,10 +177,8 @@ mod test {
 
     /// Creates a default TableDesign struct for use in testing.
     fn default_table() -> TableDesign {
-        let mut fields: HashMap<String, FieldDesign> = HashMap::new();
-        fields.insert(
-            String::from("id"), 
-            FieldDesign {
+        let mut table = TableDesign::new("User");
+        table.add(FieldDesign {
                 field_design_title: String::from("id"),
                 datatype: DataType::Unsigned64,
                 bytes: Some(64),
@@ -187,9 +192,7 @@ mod test {
                 increment: false,
                 generated: true
         });
-        fields.insert(
-            String::from("email"), 
-            FieldDesign {
+        table.add(FieldDesign {
                 field_design_title: String::from("email"),
                 datatype: DataType::String,
                 bytes: Some(800),
@@ -203,9 +206,7 @@ mod test {
                 increment: false,
                 generated: false
         });
-        fields.insert(
-            String::from("name"), 
-            FieldDesign {
+        table.add(FieldDesign {
                 field_design_title: String::from("name"),
                 datatype: DataType::String,
                 bytes: Some(800),
@@ -220,10 +221,7 @@ mod test {
                 generated: false
         });
 
-        TableDesign {
-            table_design_title: String::from("User"),
-            fields,
-        }
+        table
     }
 
 }

@@ -7,6 +7,7 @@ use crate::{error::BackendError, field::FieldDesign, filesystem::read_file, tabl
 pub struct Database {
     pub title: Option<String>,
     pub tables: HashMap<String, TableDesign>,
+    order: Vec<String>
 }
 
 impl std::fmt::Display for Database {
@@ -21,6 +22,7 @@ impl Database {
         Database {
             title,
             tables: HashMap::new(),
+            order: vec![]
         }
     }
 
@@ -31,7 +33,9 @@ impl Database {
 
     /// Adds the table to this database.
     pub fn add(&mut self, table: TableDesign) {
-        self.tables.insert(table.table_design_title.clone(), table);
+        let title = table.table_design_title.clone();
+        self.tables.insert(title.clone(), table);
+        self.order.push(title);
     }
 
     /// Gets a reference to a table in this database by its title.
@@ -98,12 +102,11 @@ impl Database {
     /// These types can be used in the front-end to standardize routes.
     /// Note that depending on usage, scripts using these may reveal internal Database structure.
     /// This function will return the last encountered error only after processing each table.
-    /// TODO: Rename reserved word "title" to something users won't likely use in a database.
-    /// TODO: Implement the TypeScript conversion here.
     pub fn export(&self, folder: &str) -> Result<(), BackendError> {
         // Allows each table to complete saving before error is returned
         let mut err_message: Result<(), BackendError> = Ok(());
-        for table in self.tables.values() {
+        for key in &self.order {
+            let table = self.tables.get(key).unwrap();
             let result = table.export(folder);
             if result.is_err() {
                 err_message = result;
