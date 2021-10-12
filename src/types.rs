@@ -39,6 +39,33 @@ pub enum DataType {
     Enum
 }
 
+/// A Datatype that contains a wrapped version of its enum.
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+pub enum DataTypeValue {
+    // String
+    String(String),
+    ByteString(Vec<u8>),
+    Json(serde_json::Value),
+    
+    // Integer
+    Signed64(i64),
+    Unsigned64(u64),
+    Signed32(i32),
+    Unsigned32(u32),
+    Signed16(i16),
+    Unsigned16(u16),
+
+    // Decimal
+    Float64(f64),
+    Float32(f32),
+
+    // Other
+    Boolean(bool),
+    Bit(u8),
+    Byte(u8),
+    Enum(u64)
+}
+
 impl DataType {
     pub fn typescript(&self) -> String {
         match self {

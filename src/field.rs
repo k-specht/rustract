@@ -3,7 +3,7 @@ use regex::Regex;
 use serde_json::{Map, Value};
 use serde::{Serialize,Deserialize};
 use crate::error::BackendError;
-use crate::types::{HasLength, HasBytes, DataType};
+use crate::types::{DataType, DataTypeValue, HasBytes, HasLength};
 
 /// Describes a database table field's design.
 /// 
@@ -265,5 +265,16 @@ impl FieldDesign {
         output += &self.datatype.typescript();
         output += ",\n";
         output
+    }
+
+    /// Extracts the JSON field as the generic value if it passes tests.
+    /// TODO: Apply this format to the test_json function
+    pub fn extract(&self, input: &Value) -> Result<DataTypeValue, BackendError> {
+        match self.datatype {
+            DataType::String => Ok(DataTypeValue::String(self.test_type(input.as_str())?.to_string())),
+            _ => Err(BackendError {
+                message: format!("Type {} is currently unsupported.", self.datatype),
+            })
+        }
     }
 }
