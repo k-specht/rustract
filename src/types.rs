@@ -163,6 +163,18 @@ impl HasLength for u8 {
     }
 }
 
+impl HasLength for f64 {
+    fn length(&self) -> isize {
+        digits(self).try_into().unwrap()
+    }
+}
+
+impl HasLength for f32 {
+    fn length(&self) -> isize {
+        digits(self).try_into().unwrap()
+    }
+}
+
 /// Adds indexing functions to the implementing type.
 pub trait IndexOf {
     /// Retrieves the first index of the specified sequence.
