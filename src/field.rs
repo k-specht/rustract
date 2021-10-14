@@ -1,9 +1,9 @@
 use std::fmt::{Display, Formatter};
 use regex::Regex;
-use serde_json::Value;
+use serde_json::{Map, Value};
 use serde::{Serialize,Deserialize};
 use crate::error::BackendError;
-use crate::types::{HasLength, HasBytes, DataType};
+use crate::types::{DataType, DataTypeValue, HasBytes, HasLength};
 
 /// Describes a database table field's design.
 /// 
@@ -65,8 +65,24 @@ impl FieldDesign {
                 self.test_byte_length::<String>(&json_string)?;
                 self.test_regex(&json_string)?;
             },
-            DataType::ByteString => todo!(),
-            DataType::Json => todo!(),
+            DataType::ByteString => {
+                let json_array = self.test_type(json.as_array())?;
+                let mut byte_string = vec![];
+                for value in json_array.iter() {
+                    byte_string.push(self.downsize::<u8, u64>(self.test_type(value.as_u64())?)?);
+                }
+                if let Some(bytes) = self.bytes {
+                    if byte_string.len() > bytes as usize {
+                        return Err(BackendError {
+                            message: format!("Bytestring {} is {} bytes long; max size is {} bytes.", self.field_design_title, byte_string.len(), bytes),
+                        });
+                    }
+                }
+            },
+            DataType::Json => {
+                let _json_object: &Map<String, Value> = self.test_type(json.as_object())?;
+                // TODO: Decide whether custom JSON field type check will be supported
+            },
             DataType::Signed64 => {
                 let json_int = self.test_type(json.as_i64())?;
                 self.test_length::<i64>(&json_int)?;
@@ -107,14 +123,29 @@ impl FieldDesign {
                     )?
                 )?;
             },
-            DataType::Float64 => todo!(),
-            DataType::Float32 => todo!(),
+            DataType::Float64 => {
+                let json_float = self.test_type(json.as_f64())?;
+                self.test_length::<f64>(&json_float)?;
+            },
+            DataType::Float32 => {
+                // TODO: Handle possible float precision loss
+                let json_float = self.test_type(json.as_f64())?;
+                self.test_length::<f32>(
+                    &(json_float as f32)
+                )?;
+            },
             DataType::Boolean => {
                 self.test_type(json.as_bool())?;
             },
             DataType::Bit => {
                 // TODO: Refactor bit check
-                self.test_type(json.as_bool())?;
+                let json_bit = self.test_type(json.as_u64())?;
+                let size = crate::types::digits(&json_bit);
+                if size > 1 {
+                    return Err(BackendError {
+                        message: format!("Expected {} to be a bit, but size was {}. Number: \"{}\"", self.field_design_title, size, json_bit),
+                    });
+                }
             },
             DataType::Byte => {
                 let json_int = self.test_type(json.as_u64())?;
@@ -124,7 +155,11 @@ impl FieldDesign {
                     )?
                 )?;
             },
-            DataType::Enum => todo!()
+            // TODO: Add field property for enum options so this type check can work
+            DataType::Enum => {
+                let json_enum = self.test_type(json.as_u64())?;
+                todo!("Add Enum type check. {}", json_enum);
+            }
         };
         Ok(())
     }
@@ -230,5 +265,16 @@ impl FieldDesign {
         output += &self.datatype.typescript();
         output += ",\n";
         output
+    }
+
+    /// Extracts the JSON field as the generic value if it passes tests.
+    /// TODO: Apply this format to the test_json function
+    pub fn extract(&self, input: &Value) -> Result<DataTypeValue, BackendError> {
+        match self.datatype {
+            DataType::String => Ok(DataTypeValue::String(self.test_type(input.as_str())?.to_string())),
+            _ => Err(BackendError {
+                message: format!("Type {} is currently unsupported.", self.datatype),
+            })
+        }
     }
 }
