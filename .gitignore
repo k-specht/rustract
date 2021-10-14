@@ -18,3 +18,8 @@ Cargo.lock
 /types
 **/example_database.json
 **/node_modules/
+**/package-lock.json
+
+# Svelte
+**/public/build/
+**/.DS_Store
