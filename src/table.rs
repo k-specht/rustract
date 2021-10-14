@@ -45,7 +45,7 @@ impl TableDesign {
             for field in fields {
                 if let Some(val) = field.get(&field_design.field_design_title) {
                     matched = true;
-                    field_design.test_json(val)?;
+                    field_design.extract(val)?;
                     break;
                 }
             }

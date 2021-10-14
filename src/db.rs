@@ -262,8 +262,8 @@ mod test {
         let good = serde_json::json!({"date": "2021-01-01"});
         let bad = serde_json::json!({"date": "2021-01-001"}); 
 
-        field_ref.test_json(&good["date"]).unwrap();
-        assert!(field_ref.test_json(&bad["date"]).is_err());
+        field_ref.extract(&good["date"]).unwrap();
+        assert!(field_ref.extract(&bad["date"]).is_err());
     }
 
     #[test]

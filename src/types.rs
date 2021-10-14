@@ -45,7 +45,7 @@ pub enum DataTypeValue {
     // String
     String(String),
     ByteString(Vec<u8>),
-    Json(serde_json::Value),
+    Json(serde_json::Map<String, serde_json::Value>),
     
     // Integer
     Signed64(i64),

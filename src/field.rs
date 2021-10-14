@@ -55,8 +55,10 @@ impl FieldDesign {
         }
     }
 
-    /// Tests the provided JSON value against this field's design.
-    pub fn test_json(&self, json: &Value) -> Result<(), BackendError> {
+    /// Tests the provided JSON value against this field's design and returns the data if valid.
+    /// 
+    /// Note that this will clone data inside the JSON value.
+    pub fn extract(&self, json: &Value) -> Result<DataTypeValue, BackendError> {
         // This match results in duplicated code, but is needed due to limitations of serde_json
         match self.datatype {
             DataType::String => {
@@ -64,6 +66,7 @@ impl FieldDesign {
                 self.test_length::<String>(&json_string)?;
                 self.test_byte_length::<String>(&json_string)?;
                 self.test_regex(&json_string)?;
+                Ok(DataTypeValue::String(json_string))
             },
             DataType::ByteString => {
                 let json_array = self.test_type(json.as_array())?;
@@ -78,54 +81,63 @@ impl FieldDesign {
                         });
                     }
                 }
+                Ok(DataTypeValue::ByteString(byte_string))
             },
             DataType::Json => {
-                let _json_object: &Map<String, Value> = self.test_type(json.as_object())?;
+                let json_object: Map<String, Value> = self.test_type(json.as_object())?.clone();
                 // TODO: Decide whether custom JSON field type check will be supported
+                Ok(DataTypeValue::Json(json_object))
             },
             DataType::Signed64 => {
                 let json_int = self.test_type(json.as_i64())?;
                 self.test_length::<i64>(&json_int)?;
+                Ok(DataTypeValue::Signed64(json_int))
             },
             DataType::Unsigned64 => {
                 let json_int = self.test_type(json.as_u64())?;
                 self.test_length::<u64>(&json_int)?;
+                Ok(DataTypeValue::Unsigned64(json_int))
             },
             DataType::Signed32 => {
-                let json_int = self.test_type(json.as_i64())?;
-                self.test_length::<i32>(
-                    &self.downsize::<i32,i64>(
-                        json_int,
-                    )?
+                let json_int = self.downsize::<i32,i64>(
+                    self.test_type(json.as_i64())?
                 )?;
+                self.test_length::<i32>(
+                    &json_int
+                )?;
+                Ok(DataTypeValue::Signed32(json_int))
             },
             DataType::Unsigned32 => {
-                let json_int = self.test_type(json.as_u64())?;
-                self.test_length::<u32>(
-                    &self.downsize::<u32,u64>(
-                        json_int,
-                    )?
+                let json_int = self.downsize::<u32,u64>(
+                    self.test_type(json.as_u64())?
                 )?;
+                self.test_length::<u32>(
+                    &json_int
+                )?;
+                Ok(DataTypeValue::Unsigned32(json_int))
             },
             DataType::Signed16 => {
-                let json_int = self.test_type(json.as_i64())?;
-                self.test_length::<i16>(
-                    &self.downsize::<i16,i64>(
-                        json_int,
-                    )?
+                let json_int = self.downsize::<i16,i64>(
+                    self.test_type(json.as_i64())?
                 )?;
+                self.test_length::<i16>(
+                    &json_int
+                )?;
+                Ok(DataTypeValue::Signed16(json_int))
             },
             DataType::Unsigned16 => {
-                let json_int = self.test_type(json.as_u64())?;
-                self.test_length::<u16>(
-                    &self.downsize::<u16,u64>(
-                        json_int,
-                    )?
+                let json_int = self.downsize::<u16,u64>(
+                    self.test_type(json.as_u64())?
                 )?;
+                self.test_length::<u16>(
+                    &json_int
+                )?;
+                Ok(DataTypeValue::Unsigned16(json_int))
             },
             DataType::Float64 => {
                 let json_float = self.test_type(json.as_f64())?;
                 self.test_length::<f64>(&json_float)?;
+                Ok(DataTypeValue::Float64(json_float))
             },
             DataType::Float32 => {
                 // TODO: Handle possible float precision loss
@@ -133,9 +145,11 @@ impl FieldDesign {
                 self.test_length::<f32>(
                     &(json_float as f32)
                 )?;
+                Ok(DataTypeValue::Float32(json_float as f32))
             },
             DataType::Boolean => {
-                self.test_type(json.as_bool())?;
+                let json_bool = self.test_type(json.as_bool())?;
+                Ok(DataTypeValue::Boolean(json_bool))
             },
             DataType::Bit => {
                 // TODO: Refactor bit check
@@ -146,22 +160,23 @@ impl FieldDesign {
                         message: format!("Expected {} to be a bit, but size was {}. Number: \"{}\"", self.field_design_title, size, json_bit),
                     });
                 }
+                Ok(DataTypeValue::Bit(self.downsize::<u8, u64>(json_bit)?))
             },
             DataType::Byte => {
-                let json_int = self.test_type(json.as_u64())?;
-                self.test_length::<u8>(
-                    &self.downsize::<u8,u64>(
-                        json_int,
-                    )?
+                let json_int = self.downsize::<u8,u64>(
+                    self.test_type(json.as_u64())?
                 )?;
+                self.test_length::<u8>(
+                    &json_int
+                )?;
+                Ok(DataTypeValue::Byte(json_int))
             },
             // TODO: Add field property for enum options so this type check can work
             DataType::Enum => {
                 let json_enum = self.test_type(json.as_u64())?;
                 todo!("Add Enum type check. {}", json_enum);
             }
-        };
-        Ok(())
+        }
     }
 
     /// Unwraps the Option-wrapped Serde value along with a relevant error message.
@@ -265,16 +280,5 @@ impl FieldDesign {
         output += &self.datatype.typescript();
         output += ",\n";
         output
-    }
-
-    /// Extracts the JSON field as the generic value if it passes tests.
-    /// TODO: Apply this format to the test_json function
-    pub fn extract(&self, input: &Value) -> Result<DataTypeValue, BackendError> {
-        match self.datatype {
-            DataType::String => Ok(DataTypeValue::String(self.test_type(input.as_str())?.to_string())),
-            _ => Err(BackendError {
-                message: format!("Type {} is currently unsupported.", self.datatype),
-            })
-        }
     }
 }
