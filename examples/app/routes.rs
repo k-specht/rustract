@@ -20,7 +20,7 @@ pub fn get_routes() -> impl Filter<Extract=impl Reply, Error=Rejection> + Clone 
 /// TODO: Database here needs to be wrapped inside an immutable thread-safe type.
 fn hello() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!("hello")
-        .and(warp::get())
+        .and(warp::post())
         .and(with_json_body())
         .and_then(extract)
         .and_then(insert)
