@@ -16,6 +16,7 @@ native-tls = "^0.2"
 sqlx = { version = "^0.5", features = [ "runtime-tokio-rustls", "mysql" ] }
 tokio = { version = "^1", features = ["full"] }
 warp = "^0.3"
+lazy_static = "^1.4.0"
 
 [lib]
 name="rusty_backend"

@@ -6,7 +6,7 @@ pub mod error;
 pub mod db;
 pub mod table;
 pub mod field;
-mod types;
+pub mod types;
 mod filesystem;
 use error::BackendError;
 use filesystem::get_config;
