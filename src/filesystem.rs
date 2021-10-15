@@ -13,7 +13,12 @@ pub fn get_config(json_path: &str) -> Result<Config, BackendError> {
 
 /// Reads the file at the specified path.
 pub fn read_file(path: &str) -> Result<String, BackendError> {
-    let mut file = File::open(path)?;
+    let mut file = match File::open(path) {
+        Ok(file) => file,
+        Err(err) => return Err(BackendError {
+            message: format!("Failed to find file <{}>: {}", path, err.to_string())
+        })
+    };
     let mut s = String::new();
     file.read_to_string(&mut s)?;
     Ok(s)

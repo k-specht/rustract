@@ -16,12 +16,14 @@ mod routes;
 // Allows the database design to be used as a global.
 // This is important because Warp's closures cannot take ownership of a non-static reference to the database.
 lazy_static! {
-    pub static ref DB_DESIGN: Database = init("./examples/app/example_config.json", false).expect("Failed to start example.");
+    pub static ref DB_DESIGN: Database = init("./examples/app/example_config.json", true).expect("Failed to start example.");
 }
 
 /// Entry point into the program.
 #[tokio::main]
 async fn main() {
+    // Lazy static will initialize it before it is used in the server (otherwise it will lag the first request to the server)
+    println!("Database Initialized: {}.", !DB_DESIGN.is_empty());
     start().await.expect("Server stopped, exiting app...");
 }
 

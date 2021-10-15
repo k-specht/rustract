@@ -15,10 +15,11 @@ Cargo.lock
 /target
 
 # Custom
-/types
+**/types
 **/example_database.json
 **/node_modules/
 **/package-lock.json
+**/.vscode/
 
 # Svelte
 **/public/build/

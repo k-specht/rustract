@@ -1,0 +1,5 @@
+{
+    "db_path": "./examples/app/example_database.json",
+    "schema_path": "./examples/app/schema.sql",
+    "type_path": "./examples/app/types/"
+}
