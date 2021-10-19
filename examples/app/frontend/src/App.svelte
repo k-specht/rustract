@@ -30,6 +30,7 @@
 <svelte:window on:hashchange={hashchange}/>
 
 <main>
+	<Register/>
 	{#if item}
 		<Item {item} returnTo="#/top/{page}"/>
 	{:else if page}
