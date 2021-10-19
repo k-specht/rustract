@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import List from './List.svelte';
 	import Item from './Item.svelte';
+	import Register from './Register.svelte';
 
 	let item;
 	let page;

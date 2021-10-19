@@ -10,16 +10,16 @@ use crate::CustomError;
 
 /// Returns the route tree to be served.
 pub fn get_routes() -> impl Filter<Extract=impl Reply, Error=Rejection> + Clone  {
-    // <domain>/api/test/
-    warp::path!("api" / "test" / ..)
-        .and(hello())
+    // <domain>/api/
+    warp::path!("api" / ..)
+        .and(register())
 }
 
 // GET <domain>/api/test/hello
 /// A function that returns a warp route for Hello World.
 /// TODO: Database here needs to be wrapped inside an immutable thread-safe type.
-fn hello() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    warp::path!("hello")
+fn register() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    warp::path!("register")
         .and(warp::post())
         .and(with_json_body())
         .and_then(extract)
@@ -73,7 +73,7 @@ async fn extract(body: serde_json::Value) -> Result<HashMap<String, DataTypeValu
 }
 
 /// Uses the fields to create some query or handle some type of custom logic.
-async fn insert(req: HashMap<String, DataTypeValue>) -> Result<(), warp::reject::Rejection> {
+async fn insert(req: HashMap<String, DataTypeValue>) -> Result<String, warp::reject::Rejection> {
     // The req variable now has all the User fields as specified in the field design
     let name = match req.get("name").unwrap() {
         DataTypeValue::String(data) => data,
@@ -83,19 +83,25 @@ async fn insert(req: HashMap<String, DataTypeValue>) -> Result<(), warp::reject:
         DataTypeValue::String(data) => data,
         _ => panic!("Invalid data type retrieved.")
     };
-    let date = match req.get("email").unwrap() {
+    let date = match req.get("date").unwrap() {
         DataTypeValue::String(data) => data,
         _ => panic!("Invalid data type retrieved.")
     };
 
     // An SQL query can be made here that safely inserts the verified data
     print!("Found User: {{ name: {}, email: {}, date: {} }}", name, email, date);
-    Ok(())
+    Ok(name.to_string())
 }
 
 /// Creates a hello response for warp to reply with.
-async fn say_hello(_: ()) -> Result<impl Reply, Rejection> {
-    respond(Ok("Hello user!!".to_string()), warp::http::StatusCode::ACCEPTED)
+async fn say_hello(user_name: String) -> Result<impl Reply, Rejection> {
+    respond(
+        Ok(format!(
+            "Welcome, {}! If this was hooked up to a database, you would be added.",
+            user_name)
+        ),
+        warp::http::StatusCode::ACCEPTED
+    )
 }
 
 /// Uses warp to respond to the client.
