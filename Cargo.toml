@@ -1,5 +1,5 @@
 [package]
-name = "rusty_backend"
+name = "rustract"
 version = "0.1.0"
 edition = "2018"
 authors = ["Käthe Specht <xpecht@gmail.com>"]
@@ -19,6 +19,6 @@ warp = "^0.3"
 lazy_static = "^1.4.0"
 
 [lib]
-name="rusty_backend"
+name="rustract"
 test = true
 plugin = false
