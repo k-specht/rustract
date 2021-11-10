@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use warp::Rejection;
 use warp::Reply;
 use warp::Filter;
-use rusty_backend::types::DataTypeValue;
+use rustract::types::DataTypeValue;
 
 use crate::ErrorType;
 use crate::DB_DESIGN;

@@ -1,15 +1,15 @@
 extern crate warp;
 extern crate tokio;
 extern crate lazy_static;
-extern crate rusty_backend;
+extern crate rustract;
 use warp::Filter;
 use warp::reject::Reject;
 use lazy_static::lazy_static;
 use std::convert::Infallible;
 
-use rusty_backend::db::Database;
-use rusty_backend::error::BackendError;
-use rusty_backend::init;
+use rustract::db::Database;
+use rustract::error::BackendError;
+use rustract::init;
 
 mod routes;
 

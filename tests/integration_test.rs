@@ -7,7 +7,7 @@
 
 use std::time::Duration;
 
-use rusty_backend::{error::BackendError, init};
+use rustract::{error::BackendError, init};
 use tokio::time::timeout;
 use warp::Filter;
 
