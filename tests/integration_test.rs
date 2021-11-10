@@ -7,13 +7,13 @@
 
 use std::time::Duration;
 
-use rustract::{error::BackendError, init};
+use rustract::{error::RustractError, init};
 use tokio::time::timeout;
 use warp::Filter;
 
 /// Uses the rusty backend library to generate a backend based on an example database.
 #[tokio::test]
-async fn main() -> Result<(), BackendError> {
+async fn main() -> Result<(), RustractError> {
     // Test this library's config integration
     let _db = init("./tests/example_config.json", true)?;
 
@@ -34,7 +34,7 @@ async fn main() -> Result<(), BackendError> {
 /// Tests the warp library.
 ///
 /// TODO: Add a client test to this that panics on failure!
-async fn warp_test() -> Result<(), BackendError> {
+async fn warp_test() -> Result<(), RustractError> {
     let hello_world = warp::path::end().map(|| "Hello, World at root!");
     let numb = warp::path!(u16).map(|a| format!("{}", a));
     let path = warp::path("hello").and(numb);

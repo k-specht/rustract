@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use regex::Regex;
 use serde_json::{Map, Value};
 use serde::{Serialize,Deserialize};
-use crate::error::BackendError;
+use crate::error::RustractError;
 use crate::types::{DataType, DataTypeValue, HasBytes, HasLength};
 
 /// Describes a database table field's design.
@@ -58,7 +58,7 @@ impl FieldDesign {
     /// Tests the provided JSON value against this field's design and returns the data if valid.
     /// 
     /// Note that this will clone data inside the JSON value.
-    pub fn extract(&self, json: &Value) -> Result<DataTypeValue, BackendError> {
+    pub fn extract(&self, json: &Value) -> Result<DataTypeValue, RustractError> {
         // This match results in duplicated code, but is needed due to limitations of serde_json
         match self.datatype {
             DataType::String => {
@@ -76,7 +76,7 @@ impl FieldDesign {
                 }
                 if let Some(bytes) = self.bytes {
                     if byte_string.len() > bytes as usize {
-                        return Err(BackendError {
+                        return Err(RustractError {
                             message: format!("Bytestring {} is {} bytes long; max size is {} bytes.", self.field_design_title, byte_string.len(), bytes),
                         });
                     }
@@ -156,7 +156,7 @@ impl FieldDesign {
                 let json_bit = self.test_type(json.as_u64())?;
                 let size = crate::types::digits(&json_bit);
                 if size > 1 {
-                    return Err(BackendError {
+                    return Err(RustractError {
                         message: format!("Expected {} to be a bit, but size was {}. Number: \"{}\"", self.field_design_title, size, json_bit),
                     });
                 }
@@ -180,10 +180,10 @@ impl FieldDesign {
     }
 
     /// Unwraps the Option-wrapped Serde value along with a relevant error message.
-    fn test_type<T>(&self, value: Option<T>) -> Result<T, BackendError> {
+    fn test_type<T>(&self, value: Option<T>) -> Result<T, RustractError> {
         match value {
             Some(val) => Ok(val),
-            None => Err(BackendError {
+            None => Err(RustractError {
                 message: format!(
                     "Field {} is not of type {}. (JSON cast failed).",
                     self.field_design_title,
@@ -194,12 +194,12 @@ impl FieldDesign {
     }
 
     /// Tests the length (digits or chars) of the given struct against this field's limit.
-    fn test_length<T>(&self, value: &T) -> Result<(), BackendError>
+    fn test_length<T>(&self, value: &T) -> Result<(), RustractError>
     where T: HasLength
     {
         if let Some(max) = self.characters {
             match value.length() > max {
-                true => return Err(BackendError {
+                true => return Err(RustractError {
                     message: format!(
                         "Field {} is over the size limit of {}.\n(Size: {}).",
                         self.field_design_title,
@@ -214,11 +214,11 @@ impl FieldDesign {
     }
 
     /// Tests the byte length of the given struct against this field's limit.
-    fn test_byte_length<T>(&self, value: &T) -> Result<(), BackendError>
+    fn test_byte_length<T>(&self, value: &T) -> Result<(), RustractError>
     where T: HasBytes
     {
         if self.bytes.is_some() && value.byte_length() > self.bytes.unwrap() {
-            return Err(BackendError {
+            return Err(RustractError {
                 message: format!(
                     "Field {} is over the byte limit of {}.\n(Bytes: {}).",
                     self.field_design_title,
@@ -231,12 +231,12 @@ impl FieldDesign {
     }
 
     /// Attempts to downsize the given number into the specified size.
-    fn downsize<T, E>(&self, value: E) -> Result<T, BackendError>
+    fn downsize<T, E>(&self, value: E) -> Result<T, RustractError>
     where E: Copy + std::convert::TryInto<T>
     {
         match value.try_into() {
             Ok(val) => Ok(val),
-            Err(_) => Err(BackendError {
+            Err(_) => Err(RustractError {
                 message: format!(
                     "Field {} is over the byte limit for type {}.",
                     self.field_design_title,
@@ -247,7 +247,7 @@ impl FieldDesign {
     }
 
     /// Tests the given struct against this field's regex restrictions.
-    fn test_regex<T>(&self, value: &T) -> Result<(), BackendError>
+    fn test_regex<T>(&self, value: &T) -> Result<(), RustractError>
     where T: AsRef<str>
     {
         if let Some(val) = &self.regex {
@@ -255,7 +255,7 @@ impl FieldDesign {
             let regex = Regex::new(val)?;
 
             if !regex.is_match(value.as_ref()) {
-                return Err(BackendError {
+                return Err(RustractError {
                     message: format!(
                         "Field {} failed to match the regex restriction of {}.",
                         self.field_design_title,

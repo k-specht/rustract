@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use std::convert::Infallible;
 
 use rustract::db::Database;
-use rustract::error::BackendError;
+use rustract::error::RustractError;
 use rustract::init;
 
 mod routes;
@@ -28,7 +28,7 @@ async fn main() {
 }
 
 /// Serves the warp server on localhost, port 3030.
-async fn start() -> Result<(), BackendError> {
+async fn start() -> Result<(), RustractError> {
     warp::serve(routes::get_routes().recover(handle_rejection)).run(([127, 0, 0, 1], 3030)).await;
     Ok(())
 }

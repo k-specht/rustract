@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{error::BackendError, field::FieldDesign, filesystem::read_file, table::TableDesign, types::{DataType, IndexOf}};
+use crate::{error::RustractError, field::FieldDesign, filesystem::read_file, table::TableDesign, types::{DataType, IndexOf}};
 
 /// A database schema struct that can be used for testing JSON.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -51,7 +51,7 @@ impl Database {
     }
 
     /// Reads a Database schema from the specified filepath.
-    pub fn from_schema(schema_path: &str) -> Result<Self, BackendError> {
+    pub fn from_schema(schema_path: &str) -> Result<Self, RustractError> {
         let schema = read_file(schema_path)?;
         let mut reading = false;
         let mut db = Database::new(None);
@@ -84,12 +84,12 @@ impl Database {
     }
 
     /// Creates an instance of this struct from the JSON file at the specified path.
-    pub fn from(filepath: &str) -> Result<Self, BackendError> {
+    pub fn from(filepath: &str) -> Result<Self, RustractError> {
         Ok(serde_json::from_str(&std::fs::read_to_string(filepath)?)?)
     }
 
     /// Saves the configuration info to a JSON file for quick loading.
-    pub fn save(&self, filepath: &str) -> Result<(), BackendError> {
+    pub fn save(&self, filepath: &str) -> Result<(), RustractError> {
         std::fs::write(
             filepath,
             serde_json::to_string_pretty(self)?
@@ -102,9 +102,9 @@ impl Database {
     /// These types can be used in the front-end to standardize routes.
     /// Note that depending on usage, scripts using these may reveal internal Database structure.
     /// This function will return the last encountered error only after processing each table.
-    pub fn export(&self, folder: &str) -> Result<(), BackendError> {
+    pub fn export(&self, folder: &str) -> Result<(), RustractError> {
         // Allows each table to complete saving before error is returned
-        let mut err_message: Result<(), BackendError> = Ok(());
+        let mut err_message: Result<(), RustractError> = Ok(());
         for key in &self.order {
             let table = self.tables.get(key).unwrap();
             let result = table.export(folder);
@@ -118,7 +118,7 @@ impl Database {
 }
 
 /// Attempts to read the table name from the provided schema line.
-fn read_name(line: &str) -> Result<String, BackendError> {
+fn read_name(line: &str) -> Result<String, RustractError> {
     let tokens: Vec<&str> = line.split(' ').collect();
     for token in tokens {
         if token.starts_with('`') {
@@ -126,7 +126,7 @@ fn read_name(line: &str) -> Result<String, BackendError> {
         }
     }
 
-    Err(BackendError {
+    Err(RustractError {
         message: format!("No table name found in schema line: {}.", line),
     })
 }
@@ -134,17 +134,17 @@ fn read_name(line: &str) -> Result<String, BackendError> {
 /// Attempts to add the schema line's field data to the provided table.
 ///
 /// TODO: Add support for composite keys; Add support for each Datatype.
-fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
+fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), RustractError> {
     let tokens: Vec<&str> = line.split(' ').collect();
 
     // Creates a blank field from the line's field name
     if tokens.is_empty() {
-        return Err(BackendError {
+        return Err(RustractError {
             message: format!("Line {} did not contain any field data.", line),
         });
     }
     if tokens[0].len() < 3 {
-        return Err(BackendError {
+        return Err(RustractError {
             message: format!("Table field {} cannot have empty name. Line: {}", tokens[0], line),
         });
     }
@@ -157,7 +157,7 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
                 match table.get_mut(&unwrap_str(*val)?) {
                     Some(value) => value,
                     None => {
-                        return Err(BackendError {
+                        return Err(RustractError {
                             message: format!("Corrupt primary key formation: {} does not exist in new table.", *val)
                         });
                     }
@@ -165,7 +165,7 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
                 return Ok(());
             },
             None => {
-                return Err(BackendError {
+                return Err(RustractError {
                     message: String::from("Primary key statement found, but end of line reached."),
                 });
             }
@@ -186,13 +186,13 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
         field.datatype = DataType::String;
         let index = match tokens[1].next_index_of(")", 7) {
             Some(val) => val,
-            None => return Err(BackendError {
+            None => return Err(RustractError {
                 message: format!("Schema line {} has invalid characters in varchar.", line),
             })
         };
         field.characters = Some(tokens[1][8..index].parse()?);
     } else {
-        return Err(BackendError {
+        return Err(RustractError {
             message: format!("Failed to read schema, {} is not a valid token.", tokens[1]),
         });
     }
@@ -203,14 +203,14 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), BackendError> {
 }
 
 /// Pulls a value out of a sql string-wrapped slice.
-fn unwrap_str(str: &str) -> Result<String, BackendError> {
+fn unwrap_str(str: &str) -> Result<String, RustractError> {
     match str.len() > 1 && str.contains('`') {
         true => {
             // This first unwrap should be safe since it contains this character
             let pos_1 = str.index_of("`").unwrap();
             let pos_2 = str.next_index_of("`", pos_1+1);
             if pos_2.is_none() {
-                return Err(BackendError {
+                return Err(RustractError {
                     message: format!("String {} does not have two instances of `.", str),
                 });
             }
@@ -218,7 +218,7 @@ fn unwrap_str(str: &str) -> Result<String, BackendError> {
             // This is a string slice of a &str, the unwrap is safe due to the previous check
             Ok(str[pos_1+1..pos_2.unwrap()].to_string())
         },
-        false => Err(BackendError {
+        false => Err(RustractError {
             message: format!("String slice does not match the format `val`: {}", str),
         })
     }

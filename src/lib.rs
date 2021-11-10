@@ -8,13 +8,13 @@ pub mod table;
 pub mod field;
 pub mod types;
 mod filesystem;
-use error::BackendError;
+use error::RustractError;
 use filesystem::get_config;
 
 use crate::db::Database;
 
 /// Initializes a local library based on the input settings.
-pub fn init(json_path: &str, reload_schema: bool) -> Result<Database, BackendError> {
+pub fn init(json_path: &str, reload_schema: bool) -> Result<Database, RustractError> {
     // Sets up filepaths
     let config = get_config(json_path)?;
     let type_path = if config.type_path.is_some() { config.type_path.unwrap() } else { "./types/".to_string() };

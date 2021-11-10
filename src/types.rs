@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use serde::{Serialize,Deserialize};
-use crate::error::BackendError;
+use crate::error::RustractError;
 
 /// Holds configuration info for the library.
 #[derive(Deserialize, Serialize, Debug)]
@@ -112,7 +112,7 @@ impl Display for DataType {
 }
 
 /// Retrieves the number of digits of a generic number.
-pub fn digits<T>(num: &T) -> usize
+pub(crate) fn digits<T>(num: &T) -> usize
 where T: std::ops::DivAssign + std::cmp::PartialOrd + From<u8> + Copy
 {
     let mut len = 0;
@@ -128,11 +128,11 @@ where T: std::ops::DivAssign + std::cmp::PartialOrd + From<u8> + Copy
     len
 }
 
-pub trait HasLength {
+pub(crate) trait HasLength {
     fn length(&self) -> isize;
 }
 
-pub trait HasBytes {
+pub(crate) trait HasBytes {
     fn byte_length(&self) -> isize;
 }
 
@@ -203,7 +203,7 @@ impl HasLength for f32 {
 }
 
 /// Adds indexing functions to the implementing type.
-pub trait IndexOf {
+pub(crate) trait IndexOf {
     /// Retrieves the first index of the specified sequence.
     fn index_of(&self, sequence: &str) -> Option<usize>;
 
@@ -279,9 +279,9 @@ impl IndexOf for &str {
     }
 }
 
-pub fn capitalize(string: &str) -> Result<String, BackendError> {
+pub(crate) fn capitalize(string: &str) -> Result<String, RustractError> {
     return if string.is_empty() {
-        Err(BackendError {
+        Err(RustractError {
             message: "Cannot capitalize an empty string.".to_string(),
         })
     } else {

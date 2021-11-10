@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use serde_json::Value;
 use serde::{Serialize,Deserialize};
-use crate::error::BackendError;
+use crate::error::RustractError;
 use crate::field::FieldDesign;
 use crate::types::capitalize;
 
@@ -35,7 +35,7 @@ impl TableDesign {
     /// Tests the provided JSON values against this table's design.
     /// 
     /// Ignores the required check for any fields marked as generated if input is true.
-    pub fn test(&self, fields: &[Value], input: bool) -> Result<(), BackendError> {
+    pub fn test(&self, fields: &[Value], input: bool) -> Result<(), RustractError> {
         // Iterates over the fields in this design and attempts to match each to the JSON
         for key in self.fields.keys() {
             let mut matched = false;
@@ -52,7 +52,7 @@ impl TableDesign {
 
             // If a required field is missing in the request JSON, decline it
             if !matched && field_design.required && (!field_design.generated || !input) {
-                return Err(BackendError {
+                return Err(RustractError {
                     message: format!(
                         "The {} field is required in {}, but was not included in the request.",
                         field_design.field_design_title,
@@ -65,7 +65,7 @@ impl TableDesign {
     }
 
     /// Saves the configuration info to a JSON file for quick loading.
-    pub fn save(&self, filepath: &str) -> Result<(), BackendError> {
+    pub fn save(&self, filepath: &str) -> Result<(), RustractError> {
         std::fs::write(
             filepath,
             serde_json::to_string_pretty(self)?
@@ -74,7 +74,7 @@ impl TableDesign {
     }
 
     /// Creates an instance of this struct from the JSON file at the specified path.
-    pub fn from(filepath: &str) -> Result<Self, BackendError> {
+    pub fn from(filepath: &str) -> Result<Self, RustractError> {
         Ok(serde_json::from_str(&std::fs::read_to_string(filepath)?)?)
     }
 
@@ -102,7 +102,7 @@ impl TableDesign {
     /// 
     /// These types can be used in the front-end to standardize routes.
     /// Note that depending on usage, scripts using these may reveal internal Database structure.
-    pub fn export(&self, folder: &str) -> Result<(), BackendError> {
+    pub fn export(&self, folder: &str) -> Result<(), RustractError> {
         // Creates a filepath for this table's type file
         let new_path = if folder.ends_with('/') {
             format!("{}{}.ts", folder, &self.table_design_title)
