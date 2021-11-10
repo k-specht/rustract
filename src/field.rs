@@ -27,7 +27,9 @@ pub struct FieldDesign {
     #[serde(skip_serializing_if="Option::is_none")]
     pub foreign: Option<String>,
     pub increment: bool,
-    pub generated: bool
+    pub generated: bool,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub enum_range: Option<std::ops::Range<usize>>
 }
 
 impl Display for FieldDesign {
@@ -51,13 +53,12 @@ impl FieldDesign {
             required: false,
             foreign: None,
             increment: false,
-            generated: false
+            generated: false,
+            enum_range: None
         }
     }
 
     /// Tests the provided JSON value against this field's design and returns the data if valid.
-    /// 
-    /// Note that this will clone data inside the JSON value.
     pub fn extract(&self, json: &Value) -> Result<DataTypeValue, RustractError> {
         // This match results in duplicated code, but is needed due to limitations of serde_json
         match self.datatype {
@@ -77,7 +78,12 @@ impl FieldDesign {
                 if let Some(bytes) = self.bytes {
                     if byte_string.len() > bytes as usize {
                         return Err(RustractError {
-                            message: format!("Bytestring {} is {} bytes long; max size is {} bytes.", self.field_design_title, byte_string.len(), bytes),
+                            message: format!(
+                                "Bytestring {} is {} bytes long; max size is {} bytes.",
+                                self.field_design_title,
+                                byte_string.len(),
+                                bytes
+                            ),
                         });
                     }
                 }
@@ -157,7 +163,12 @@ impl FieldDesign {
                 let size = crate::types::digits(&json_bit);
                 if size > 1 {
                     return Err(RustractError {
-                        message: format!("Expected {} to be a bit, but size was {}. Number: \"{}\"", self.field_design_title, size, json_bit),
+                        message: format!(
+                            "Expected {} to be a bit, but size was {}. Number: \"{}\"",
+                            self.field_design_title,
+                            size,
+                            json_bit
+                        ),
                     });
                 }
                 Ok(DataTypeValue::Bit(self.downsize::<u8, u64>(json_bit)?))
@@ -171,10 +182,24 @@ impl FieldDesign {
                 )?;
                 Ok(DataTypeValue::Byte(json_int))
             },
-            // TODO: Add field property for enum options so this type check can work
             DataType::Enum => {
-                let json_enum = self.test_type(json.as_u64())?;
-                todo!("Add Enum type check. {}", json_enum);
+                let json_enum = self.downsize::<u32, u64>(self.test_type(json.as_u64())?)?;
+                if let Some(range) = &self.enum_range {
+                    if range.contains(&(json_enum as usize)) {
+                        Ok(DataTypeValue::Enum(json_enum))
+                    } else {
+                        Err(RustractError {
+                            message: format!(
+                                "Expected {} to be within the enum range {}..{}.",
+                                json_enum,
+                                range.start,
+                                range.end
+                            )
+                        })
+                    }
+                } else {
+                    Ok(DataTypeValue::Enum(json_enum))
+                }
             }
         }
     }
@@ -269,8 +294,6 @@ impl FieldDesign {
     }
 
     /// Exports this field to a String containing TypeScript.
-    /// 
-    /// TODO: Decide whether to make this exclude generated fields altogether with input.
     pub fn export(&self, input: bool) -> String {
         let mut output = String::new();
         output += "  ";
@@ -280,5 +303,303 @@ impl FieldDesign {
         output += &self.datatype.typescript();
         output += ",\n";
         output
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_int() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "int".to_string(),
+            datatype: DataType::Signed32,
+            bytes: Some(32),
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("int").unwrap()).unwrap(), DataTypeValue::Signed32(-1_i32));
+    }
+
+    #[test]
+    fn test_int_64() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "int64".to_string(),
+            datatype: DataType::Signed64,
+            bytes: None,
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("int64").unwrap()).unwrap(), DataTypeValue::Signed64(-4294967297_i64));
+    }
+
+    #[test]
+    fn test_enum() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "enum".to_string(),
+            datatype: DataType::Enum,
+            bytes: Some(32),
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: Some(0..8),
+        };
+        assert_eq!(field.extract(json.get("enum").unwrap()).unwrap(), DataTypeValue::Enum(7_u32));
+    }
+
+    #[test]
+    fn test_bit() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "bit".to_string(),
+            datatype: DataType::Bit,
+            bytes: Some(1),
+            characters: Some(1),
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("bit").unwrap()).unwrap(), DataTypeValue::Bit(1_u8));
+    }
+
+    #[test]
+    fn test_byte() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "byte".to_string(),
+            datatype: DataType::Byte,
+            bytes: Some(1),
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("byte").unwrap()).unwrap(), DataTypeValue::Byte(0_u8));
+    }
+
+    #[test]
+    fn test_uint_32() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "uint".to_string(),
+            datatype: DataType::Unsigned32,
+            bytes: Some(32),
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("uint").unwrap()).unwrap(), DataTypeValue::Unsigned32(1_u32));
+    }
+
+    #[test]
+    fn test_uint_64() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "uint64".to_string(),
+            datatype: DataType::Unsigned64,
+            bytes: None,
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("uint64").unwrap()).unwrap(), DataTypeValue::Unsigned64(4294967297_u64));
+    }
+
+    #[test]
+    fn test_float() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "float".to_string(),
+            datatype: DataType::Float32,
+            bytes: Some(32),
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("float").unwrap()).unwrap(), DataTypeValue::Float32(1.1_f32));
+    }
+
+    #[test]
+    fn test_float_64() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "float64".to_string(),
+            datatype: DataType::Float64,
+            bytes: None,
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("float64").unwrap()).unwrap(), DataTypeValue::Float64(1.1_f64));
+    }
+
+    #[test]
+    fn test_string() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "string".to_string(),
+            datatype: DataType::String,
+            bytes: None,
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("string").unwrap()).unwrap(), DataTypeValue::String("test".to_string()));
+    }
+
+    #[test]
+    fn test_byte_string() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "byte_string".to_string(),
+            datatype: DataType::ByteString,
+            bytes: None,
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("byte_string").unwrap()).unwrap(), DataTypeValue::ByteString([0_u8].to_vec()));
+    }
+
+    #[test]
+    fn test_bool() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "boolean".to_string(),
+            datatype: DataType::Boolean,
+            bytes: Some(1),
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        assert_eq!(field.extract(json.get("boolean").unwrap()).unwrap(), DataTypeValue::Boolean(true));
+    }
+
+    #[test]
+    fn test_json() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "json".to_string(),
+            datatype: DataType::Json,
+            bytes: None,
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_range: None,
+        };
+        let mut map: Map<String, serde_json::Value> = Map::new();
+        map.insert("field".to_string(), serde_json::json!("test"));
+        assert_eq!(field.extract(json.get("json").unwrap()).unwrap(), DataTypeValue::Json(map));
+    }
+
+    fn json_init() -> Value {
+        serde_json::json!({
+            "int": -1_i32,
+            "uint": 1_u32,
+            "int64": -4294967297_i64,
+            "uint64": 4294967297_u64,
+            "float": 1.1_f32,
+            "float64": 1.1_f64,
+            "string": "test",
+            "byte_string": [0_u8],
+            "byte": 0_u8,
+            "bit": 1_u8,
+            "boolean": true,
+            "json": { "field": "test" },
+            "enum": 7_u32
+        })
     }
 }

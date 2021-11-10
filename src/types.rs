@@ -63,7 +63,7 @@ pub enum DataTypeValue {
     Boolean(bool),
     Bit(u8),
     Byte(u8),
-    Enum(u64)
+    Enum(u32)
 }
 
 impl DataType {

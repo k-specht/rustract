@@ -190,7 +190,8 @@ mod test {
                 required: true,
                 foreign: None,
                 increment: false,
-                generated: true
+                generated: true,
+                enum_range: None
         });
         table.add(FieldDesign {
                 field_design_title: String::from("email"),
@@ -204,7 +205,8 @@ mod test {
                 required: true,
                 foreign: None,
                 increment: false,
-                generated: false
+                generated: false,
+                enum_range: None
         });
         table.add(FieldDesign {
                 field_design_title: String::from("name"),
@@ -218,7 +220,8 @@ mod test {
                 required: false,
                 foreign: None,
                 increment: false,
-                generated: false
+                generated: false,
+                enum_range: None
         });
 
         table
