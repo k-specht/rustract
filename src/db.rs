@@ -133,9 +133,14 @@ fn read_name(line: &str) -> Result<String, RustractError> {
 
 /// Attempts to add the schema line's field data to the provided table.
 ///
-/// TODO: Add support for composite keys; Add support for each Datatype.
-fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), RustractError> {
-    let tokens: Vec<&str> = line.split(' ').collect();
+/// TODO: Add support for each Datatype (currently each type init is based off of MySQL's InnoDB).
+fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError> {
+    // Gather the tokens in lower case, separated by a single space each
+    let line = source.trim().to_ascii_lowercase();
+    if line.is_empty() {
+        return Ok(())
+    }
+    let tokens: Vec<&str> = line.split(' ').filter(|&substr| !substr.is_empty()).collect();
 
     // Creates a blank field from the line's field name
     if tokens.is_empty() {
@@ -148,8 +153,10 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), RustractError> {
             message: format!("Table field {} cannot have empty name. Line: {}", tokens[0], line),
         });
     }
-    let mut field = FieldDesign::new("TEMP");
-    if tokens[0] == "PRIMARY" {
+    let mut field = FieldDesign::new("temp");
+
+    // Handles primary key line (returns)
+    if tokens[0] == "primary" {
         // Skips over the word "KEY"
         match tokens.get(2) {
             Some(val) => {
@@ -171,34 +178,50 @@ fn add_to_db(line: &str, table: &mut TableDesign) -> Result<(), RustractError> {
             }
         }
     }
-    field.field_design_title = unwrap_str(tokens[0])?;
 
-    // Sets the data type and related fields
-    if tokens[1] == "int" {
-        field.datatype = if line.contains("unsigned") { DataType::Unsigned64 } else { DataType::Signed64 };
-        field.increment = line.contains("AUTO_INCREMENT");
-        if field.increment {
-            field.generated = true;
+    // Handles column lines
+    if tokens[0].contains('`') {
+        field.field_design_title = unwrap_str(tokens[0])?;
+        let descriptor = tokens[1].to_string();
+
+        // Sets the data type and related fields
+        if descriptor.as_str() == "int" {
+            field.datatype = if line.contains("unsigned") { DataType::Unsigned64 } else { DataType::Signed64 };
+            field.increment = line.contains("auto_increment");
+            if field.increment {
+                field.generated = true;
+            }
+            field.bytes = Some(64);
+        } else if descriptor.starts_with("varchar(") {
+            // Pulls the size out of the varchar wrap and converts it to an integer
+            field.datatype = DataType::String;
+            let index = match tokens[1].next_index_of(")", 7) {
+                Some(val) => val,
+                None => return Err(RustractError {
+                    message: format!("Schema line {} has invalid characters in varchar.", line),
+                })
+            };
+            field.characters = Some(tokens[1][8..index].parse()?);
+        } else if descriptor.starts_with("enum(") {
+            field.datatype = DataType::Enum;
+            // Counts all of the elements in the comma-separated enum
+            field.enum_range = Some(0..count(&descriptor)?);
+        } else if descriptor.contains("tinyint") {
+            field.datatype = DataType::Byte;
+        } else if descriptor.contains("json") {
+            field.datatype = DataType::Json;
+        } else {
+            return Err(RustractError {
+                message: format!("Failed to read schema, {} is not a valid token.", descriptor),
+            });
         }
-        field.bytes = Some(64);
-    } else if tokens[1].starts_with("varchar(") {
-        // Pulls the size out of the varchar wrap and converts it to an integer
-        field.datatype = DataType::String;
-        let index = match tokens[1].next_index_of(")", 7) {
-            Some(val) => val,
-            None => return Err(RustractError {
-                message: format!("Schema line {} has invalid characters in varchar.", line),
-            })
-        };
-        field.characters = Some(tokens[1][8..index].parse()?);
-    } else {
-        return Err(RustractError {
-            message: format!("Failed to read schema, {} is not a valid token.", tokens[1]),
-        });
+
+        // Sets whether the field is null 
+        field.required = line.contains("not null");
+        table.add(field);
     }
 
-    field.required = line.contains("NOT NULL");
-    table.add(field);
+    // Unsupported lines like index declarations are ignored for compatibility
     Ok(())
 }
 
@@ -221,6 +244,46 @@ fn unwrap_str(str: &str) -> Result<String, RustractError> {
         false => Err(RustractError {
             message: format!("String slice does not match the format `val`: {}", str),
         })
+    }
+}
+
+/// Counts all of the elements between parenthesis in a comma-separated list.
+fn count(line: &str) -> Result<usize, RustractError> {
+    let mut count = 0;
+    let mut found_end = false;
+    let mut last_char: char = line.chars().next().unwrap();
+
+    // Counts the commas and adds one if there is only one item
+    for character in line.chars() {
+        if character == ',' && (last_char == ',' || last_char == '(') {
+            return Err(RustractError {
+                message: format!(
+                    "Unexpected empty comma-separated list; line: {}",
+                    line
+                )
+            })
+        } else if character == ')' && (last_char == ',' || last_char == '(') {
+            found_end = true;
+            break;
+        } else if character == ',' {
+            count += 1;
+        } else if character == ')' {
+            count += 1;
+            found_end = true;
+            break;
+        }
+        last_char = character;
+    }
+
+    if !found_end {
+        Err(RustractError {
+            message: format!(
+                "Incorrect parenthesis format; could not count the number of elements in {}",
+                line
+            )
+        })
+    } else {
+        Ok(count)
     }
 }
 
@@ -256,14 +319,14 @@ mod test {
         // Gets the date field from the test schema
         let db = Database::from_schema("./tests/schema.sql").unwrap();
         let table_ref: &TableDesign = db.get("user").unwrap();
-        let field_ref: &FieldDesign = table_ref.get("date").unwrap();
+        let field_ref: &FieldDesign = table_ref.get("registered").unwrap();
 
         // The good date is below the character limit of 10 (for ISO Strings)
-        let good = serde_json::json!({"date": "2021-01-01"});
-        let bad = serde_json::json!({"date": "2021-01-001"}); 
+        let good = serde_json::json!({"registered": "2021-01-01"});
+        let bad = serde_json::json!({"registered": "2021-01-001"}); 
 
-        field_ref.extract(&good["date"]).unwrap();
-        assert!(field_ref.extract(&bad["date"]).is_err());
+        field_ref.extract(&good["registered"]).unwrap();
+        assert!(field_ref.extract(&bad["registered"]).is_err());
     }
 
     #[test]

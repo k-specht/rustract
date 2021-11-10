@@ -71,7 +71,7 @@ impl DataType {
         match self {
             DataType::String => "string",
             DataType::ByteString => "[]",
-            DataType::Json => "string",
+            DataType::Json => "any",
             DataType::Signed64 => "number",
             DataType::Unsigned64 => "number",
             DataType::Signed32 => "number",
@@ -83,8 +83,7 @@ impl DataType {
             DataType::Boolean => "bool",
             DataType::Bit => "number",
             DataType::Byte => "number",
-            // TODO: This might need its own type
-            DataType::Enum => "enum",
+            DataType::Enum => "number",
         }.to_string()
     }
 }
