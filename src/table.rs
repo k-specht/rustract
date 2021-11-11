@@ -191,7 +191,8 @@ mod test {
                 foreign: None,
                 increment: false,
                 generated: true,
-                enum_range: None
+                enum_set: None,
+                set: None
         });
         table.add(FieldDesign {
                 field_design_title: String::from("email"),
@@ -206,7 +207,8 @@ mod test {
                 foreign: None,
                 increment: false,
                 generated: false,
-                enum_range: None
+                enum_set: None,
+                set: None
         });
         table.add(FieldDesign {
                 field_design_title: String::from("name"),
@@ -221,7 +223,8 @@ mod test {
                 foreign: None,
                 increment: false,
                 generated: false,
-                enum_range: None
+                enum_set: None,
+                set: None
         });
 
         table

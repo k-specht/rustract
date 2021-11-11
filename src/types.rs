@@ -36,7 +36,8 @@ pub enum DataType {
     Boolean,
     Bit,
     Byte,
-    Enum
+    Enum,
+    Set
 }
 
 /// A Datatype that contains a wrapped version of its enum.
@@ -63,7 +64,8 @@ pub enum DataTypeValue {
     Boolean(bool),
     Bit(u8),
     Byte(u8),
-    Enum(u32)
+    Enum(u32),
+    Set(String)
 }
 
 impl DataType {
@@ -83,7 +85,8 @@ impl DataType {
             DataType::Boolean => "bool",
             DataType::Bit => "number",
             DataType::Byte => "number",
-            DataType::Enum => "number",
+            DataType::Enum => "Enum",
+            DataType::Set => "string"
         }.to_string()
     }
 }
@@ -106,6 +109,7 @@ impl Display for DataType {
             DataType::Bit => "Bit",
             DataType::Byte => "Byte",
             DataType::Enum => "Enum",
+            DataType::Set => "Set"
         })
     }
 }

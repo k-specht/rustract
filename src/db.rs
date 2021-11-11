@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{error::RustractError, field::FieldDesign, filesystem::read_file, table::TableDesign, types::{DataType, IndexOf}};
 
@@ -182,7 +182,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
     // Handles column lines
     if tokens[0].contains('`') {
         field.field_design_title = unwrap_str(tokens[0])?;
-        let descriptor = tokens[1].to_string();
+        let descriptor = tokens[1].trim().to_ascii_lowercase();
 
         // Sets the data type and related fields
         if descriptor.as_str() == "int" {
@@ -205,7 +205,10 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
         } else if descriptor.starts_with("enum(") {
             field.datatype = DataType::Enum;
             // Counts all of the elements in the comma-separated enum
-            field.enum_range = Some(0..count(&descriptor)?);
+            field.enum_set = Some(extract_csl(&descriptor)?);
+        } else if descriptor.starts_with("set(") {
+            field.datatype = DataType::Set;
+            field.set = Some(as_set(extract_csl(&descriptor)?));
         } else if descriptor.contains("tinyint") {
             field.datatype = DataType::Byte;
         } else if descriptor.contains("json") {
@@ -223,6 +226,17 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
 
     // Unsupported lines like index declarations are ignored for compatibility
     Ok(())
+}
+
+/// Converts the vector into a HashSet.
+/// 
+/// Using a From implementation was avoided here.
+fn as_set(vector: Vec<String>) -> HashSet<String> {
+    let mut set: HashSet<String> = HashSet::new();
+    for value in vector {
+        set.insert(value);
+    }
+    set
 }
 
 /// Pulls a value out of a sql string-wrapped slice.
@@ -247,44 +261,40 @@ fn unwrap_str(str: &str) -> Result<String, RustractError> {
     }
 }
 
-/// Counts all of the elements between parenthesis in a comma-separated list.
-fn count(line: &str) -> Result<usize, RustractError> {
-    let mut count = 0;
-    let mut found_end = false;
-    let mut last_char: char = line.chars().next().unwrap();
-
-    // Counts the commas and adds one if there is only one item
-    for character in line.chars() {
-        if character == ',' && (last_char == ',' || last_char == '(') {
-            return Err(RustractError {
-                message: format!(
-                    "Unexpected empty comma-separated list; line: {}",
-                    line
-                )
-            })
-        } else if character == ')' && (last_char == ',' || last_char == '(') {
-            found_end = true;
-            break;
-        } else if character == ',' {
-            count += 1;
-        } else if character == ')' {
-            count += 1;
-            found_end = true;
-            break;
-        }
-        last_char = character;
-    }
-
-    if !found_end {
-        Err(RustractError {
+/// Unwraps parenthesis to get the contents
+fn unwrap_parenthesis(line: &str) -> Result<String, RustractError> {
+    let start = match line.index_of("(") {
+        Some(index) => index,
+        None => return Err(RustractError {
             message: format!(
-                "Incorrect parenthesis format; could not count the number of elements in {}",
+                "Could not unwrap parenthesis; line {} had no start",
                 line
             )
         })
-    } else {
-        Ok(count)
+    };
+    let end = match line.index_of(")") {
+        Some(index) => index,
+        None => return Err(RustractError {
+            message: format!(
+                "Could not unwrap parenthesis; line {} had no end",
+                line
+            )
+        })
+    };
+    Ok(line.to_ascii_lowercase()[start..end].to_string())
+}
+
+/// Extracts a comma separated list as a vector.
+fn extract_csl(line_src: &str) -> Result<Vec<String>, RustractError> {
+    // Get line segment containing the CSL
+    let mut csl = vec![];
+    let line = unwrap_parenthesis(line_src)?;
+
+    for token in line.split(',') {
+        csl.push(token.trim().to_string());
     }
+
+    Ok(csl)
 }
 
 #[cfg(test)]
@@ -332,6 +342,7 @@ mod test {
     #[test]
     fn typescript_test() {
         let db = Database::from_schema("./tests/schema.sql").unwrap();
+        crate::filesystem::_check_path(&None, "./types/").unwrap();
         db.export("./types/").unwrap();
     }
 }

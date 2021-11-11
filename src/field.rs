@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use regex::Regex;
 use serde_json::{Map, Value};
@@ -29,7 +30,9 @@ pub struct FieldDesign {
     pub increment: bool,
     pub generated: bool,
     #[serde(skip_serializing_if="Option::is_none")]
-    pub enum_range: Option<std::ops::Range<usize>>
+    pub enum_set: Option<Vec<String>>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub set: Option<HashSet<String>>
 }
 
 impl Display for FieldDesign {
@@ -54,7 +57,8 @@ impl FieldDesign {
             foreign: None,
             increment: false,
             generated: false,
-            enum_range: None
+            enum_set: None,
+            set: None
         }
     }
 
@@ -184,21 +188,42 @@ impl FieldDesign {
             },
             DataType::Enum => {
                 let json_enum = self.downsize::<u32, u64>(self.test_type(json.as_u64())?)?;
-                if let Some(range) = &self.enum_range {
-                    if range.contains(&(json_enum as usize)) {
+                if let Some(list) = &self.enum_set {
+                    if (json_enum as usize) < list.len() {
                         Ok(DataTypeValue::Enum(json_enum))
                     } else {
                         Err(RustractError {
                             message: format!(
                                 "Expected {} to be within the enum range {}..{}.",
                                 json_enum,
-                                range.start,
-                                range.end
+                                0,
+                                list.len()
                             )
                         })
                     }
                 } else {
-                    Ok(DataTypeValue::Enum(json_enum))
+                    Err(RustractError {
+                        message: "Internal error: enum field has no enum attached!".to_string()
+                    })
+                }
+            },
+            DataType::Set => {
+                let json_string = self.test_type(json.as_str())?.to_ascii_lowercase();
+                if let Some(set) = &self.set {
+                    if set.contains(&json_string) {
+                        Ok(DataTypeValue::Set(json_string))
+                    } else {
+                        Err(RustractError {
+                            message: format!(
+                                "Value {} is not an element of this set.",
+                                json_string
+                            )
+                        })
+                    }
+                } else {
+                    Err(RustractError {
+                        message: "Internal error: set field has no set attached!".to_string()
+                    })
                 }
             }
         }
@@ -326,7 +351,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("int").unwrap()).unwrap(), DataTypeValue::Signed32(-1_i32));
     }
@@ -347,7 +373,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("int64").unwrap()).unwrap(), DataTypeValue::Signed64(-4294967297_i64));
     }
@@ -368,7 +395,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: Some(0..8),
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("enum").unwrap()).unwrap(), DataTypeValue::Enum(7_u32));
     }
@@ -389,7 +417,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("bit").unwrap()).unwrap(), DataTypeValue::Bit(1_u8));
     }
@@ -410,7 +439,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("byte").unwrap()).unwrap(), DataTypeValue::Byte(0_u8));
     }
@@ -431,7 +461,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("uint").unwrap()).unwrap(), DataTypeValue::Unsigned32(1_u32));
     }
@@ -452,7 +483,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("uint64").unwrap()).unwrap(), DataTypeValue::Unsigned64(4294967297_u64));
     }
@@ -473,7 +505,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("float").unwrap()).unwrap(), DataTypeValue::Float32(1.1_f32));
     }
@@ -494,7 +527,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("float64").unwrap()).unwrap(), DataTypeValue::Float64(1.1_f64));
     }
@@ -515,7 +549,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("string").unwrap()).unwrap(), DataTypeValue::String("test".to_string()));
     }
@@ -536,7 +571,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("byte_string").unwrap()).unwrap(), DataTypeValue::ByteString([0_u8].to_vec()));
     }
@@ -557,7 +593,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         assert_eq!(field.extract(json.get("boolean").unwrap()).unwrap(), DataTypeValue::Boolean(true));
     }
@@ -578,7 +615,8 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_range: None,
+            enum_set: None,
+            set: None
         };
         let mut map: Map<String, serde_json::Value> = Map::new();
         map.insert("field".to_string(), serde_json::json!("test"));
