@@ -231,7 +231,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
 /// Converts the vector into a HashSet.
 /// 
 /// Using a From implementation was avoided here.
-fn as_set(vector: Vec<String>) -> HashSet<String> {
+pub(crate) fn as_set(vector: Vec<String>) -> HashSet<String> {
     let mut set: HashSet<String> = HashSet::new();
     for value in vector {
         set.insert(value);
@@ -342,7 +342,7 @@ mod test {
     #[test]
     fn typescript_test() {
         let db = Database::from_schema("./tests/schema.sql").unwrap();
-        crate::filesystem::_check_path(&None, "./types/").unwrap();
+        crate::filesystem::_check_path("./types/").unwrap();
         db.export("./types/").unwrap();
     }
 }

@@ -395,10 +395,32 @@ mod test {
             foreign: None,
             increment: false,
             generated: true,
-            enum_set: None,
+            enum_set: Some(vec!["Zero".to_string(),"One".to_string(),"Two".to_string(),"Three".to_string(),"Four".to_string(),"Five".to_string(),"Six".to_string(),"Seven".to_string()]),
             set: None
         };
         assert_eq!(field.extract(json.get("enum").unwrap()).unwrap(), DataTypeValue::Enum(7_u32));
+    }
+
+    #[test]
+    fn test_set() {
+        let json = json_init();
+        let field = FieldDesign {
+            field_design_title: "set".to_string(),
+            datatype: DataType::Set,
+            bytes: Some(32),
+            characters: None,
+            decimals: None,
+            regex: None,
+            primary: true,
+            unique: true,
+            required: true,
+            foreign: None,
+            increment: false,
+            generated: true,
+            enum_set: None,
+            set: Some(crate::db::as_set(vec!["test".to_string(),"set".to_string()]))
+        };
+        assert_eq!(field.extract(json.get("set").unwrap()).unwrap(), DataTypeValue::Set("test".to_string()));
     }
 
     #[test]
@@ -637,7 +659,8 @@ mod test {
             "bit": 1_u8,
             "boolean": true,
             "json": { "field": "test" },
-            "enum": 7_u32
+            "enum": 7_u32,
+            "set": "test"
         })
     }
 }

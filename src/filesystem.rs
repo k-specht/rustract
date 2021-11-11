@@ -30,18 +30,10 @@ pub(crate) fn _delete_file(filepath: &str) -> Result<(), RustractError> {
     Ok(())
 }
 
-/// Reads the provided directory's contents or creates it and reads the new one.
-pub(crate) fn _check_path(path: &Option<String>, default: &str) -> Result<std::fs::ReadDir, RustractError> {
-    Ok(match path {
-        Some(path) => {
-            if !std::path::Path::new(path).is_dir() {
-                std::fs::create_dir(path)?;
-            }
-            std::fs::read_dir(path)?
-        },
-        None => {
-            std::fs::create_dir(default)?;
-            std::fs::read_dir(default)?
-        },
-    })
+/// Checks if the specified directory exists, and creates it if not.
+pub(crate) fn _check_path(path: &str) -> Result<(), RustractError> {
+    if !std::path::Path::new(path).is_dir() {
+        std::fs::create_dir(path)?;
+    }
+    Ok(())
 }
