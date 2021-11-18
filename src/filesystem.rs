@@ -31,7 +31,7 @@ pub(crate) fn _delete_file(filepath: &str) -> Result<(), RustractError> {
 }
 
 /// Checks if the specified directory exists, and creates it if not.
-pub(crate) fn _check_path(path: &str) -> Result<(), RustractError> {
+pub(crate) fn check_path(path: &str) -> Result<(), RustractError> {
     if !std::path::Path::new(path).is_dir() {
         std::fs::create_dir(path)?;
     }

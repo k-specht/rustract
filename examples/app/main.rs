@@ -16,7 +16,8 @@ mod routes;
 // Allows the database design to be used as a global.
 // This is important because Warp's closures cannot take ownership of a non-static reference to the database.
 lazy_static! {
-    pub static ref DB_DESIGN: Database = init("./examples/app/example_config.json", true).expect("Failed to start example.");
+    pub static ref DB_DESIGN: Database = init("./examples/app/example_config.json", true)
+        .expect("Failed to start example.");
 }
 
 /// Entry point into the program.
@@ -29,7 +30,9 @@ async fn main() {
 
 /// Serves the warp server on localhost, port 3030.
 async fn start() -> Result<(), RustractError> {
+    println!("Server started on port 3030!");
     warp::serve(routes::get_routes().recover(handle_rejection)).run(([127, 0, 0, 1], 3030)).await;
+    println!("Server stopped.");
     Ok(())
 }
 

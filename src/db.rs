@@ -103,6 +103,8 @@ impl Database {
     /// Note that depending on usage, scripts using these may reveal internal Database structure.
     /// This function will return the last encountered error only after processing each table.
     pub fn export(&self, folder: &str) -> Result<(), RustractError> {
+        crate::filesystem::check_path(folder)?;
+
         // Allows each table to complete saving before error is returned
         let mut err_message: Result<(), RustractError> = Ok(());
         for key in &self.order {
@@ -342,7 +344,7 @@ mod test {
     #[test]
     fn typescript_test() {
         let db = Database::from_schema("./tests/schema.sql").unwrap();
-        crate::filesystem::_check_path("./types/").unwrap();
+        crate::filesystem::check_path("./types/").unwrap();
         db.export("./types/").unwrap();
     }
 }
