@@ -1,11 +1,12 @@
 use std::collections::HashMap;
-
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use serde_json::Value;
 use serde::{Serialize,Deserialize};
 use crate::error::RustractError;
 use crate::field::FieldDesign;
 use crate::types::capitalize;
+use crate::types::DataType;
 
 /// Describes a database table's design.
 /// 
@@ -132,8 +133,56 @@ impl TableDesign {
         second_output += "}\n";
         output += &second_output;
 
+        output += &self.create_names()?;
+
         std::fs::write(new_path, output)?;
         Ok(())
+    }
+
+    /// Sets up proper enum and set types.
+    ///
+    /// Note: This may create duplicates, edit manually.
+    fn create_names(&self) -> Result<String, RustractError> {
+        // Keep track of enums and sets to avoid duplicates in this table
+        let mut output: String = String::new();
+        let mut seen_sets: HashSet<HashSet<String>> = HashSet::new();
+        let mut seen_enums: HashSet<Vec<String>> = HashSet::new();
+        
+        // Check if fields are enums or sets and create any missing types
+        for key in &self.order {
+            let field = self.get(key).unwrap();
+            match field.datatype {
+                DataType::Enum => {
+                    if let Some(set) = field.enum_set {
+                        if !seen_enums.contains(&set) {
+                            seen_enums.insert(set.clone());
+                            output += &field.export_type(&self.table_design_title)?;
+                        }
+                    } else {
+                        return Err(RustractError {
+                            message: format!("Field {} does not have an associated enum set", &field.field_design_title)
+                        });
+                    }
+                },
+                DataType::Set => {
+                    if let Some(set) = field.set {
+                        if !seen_sets.contains(&set) {
+                            seen_sets.insert(set.clone());
+                            output += &field.export_type(&self.table_design_title)?;
+                        }
+                    } else {
+                        return Err(RustractError {
+                            message: format!("Field {} does not have an associated set", &field.field_design_title)
+                        });
+                    }
+                },
+                _ => {
+                   // Ignore other fields
+                }
+            }
+        }
+
+        Ok(output)
     }
 }
 

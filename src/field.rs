@@ -229,6 +229,52 @@ impl FieldDesign {
         }
     }
 
+    /// Creates an export type for this field's data to match against.
+    ///
+    /// This will fail if this field is not a member of a type.
+    pub fn export_type(&self, table_name: &str) -> Result<String, RustractError> {
+        let mut output: String = String::new();
+        let name: String = format!("export type {}{}Set {{", table_name, self.field_design_title);
+        output += &name;
+
+        match self.datatype {
+            DataType::Enum => {
+                // Add each enum element to the new type
+                if let Some(set) = self.enum_set {
+                    for element in set {
+                        output += &element;
+                        output += "\n";
+                    }
+                } else {
+                    return Err(RustractError {
+                        message: format!("Field {} does not have an associated enum set", &self.field_design_title)
+                    });
+                }
+            },
+            DataType::Set => {
+                // Add each set element to the new type
+                if let Some(set) = self.set {
+                    for element in set {
+                        output += &element;
+                        output += "\n";
+                    }
+                } else {
+                    return Err(RustractError {
+                        message: format!("Field {} does not have an associated set", &self.field_design_title)
+                    });
+                }
+            },
+            _ => {
+                return Err(RustractError {
+                    message: format!("Field {} is not an enum or set. Other types are invalid here", &self.field_design_title)
+                });
+            }
+        }
+
+        output += "}\n";
+        Ok(output)
+    }
+
     /// Unwraps the Option-wrapped Serde value along with a relevant error message.
     fn test_type<T>(&self, value: Option<T>) -> Result<T, RustractError> {
         match value {
