@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet, BTreeMap};
 
 use crate::{error::RustractError, field::FieldDesign, filesystem::read_file, table::TableDesign, types::{DataType, IndexOf}};
 
@@ -6,8 +6,7 @@ use crate::{error::RustractError, field::FieldDesign, filesystem::read_file, tab
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Database {
     pub title: Option<String>,
-    pub tables: HashMap<String, TableDesign>,
-    order: Vec<String>
+    pub tables: BTreeMap<String, TableDesign>
 }
 
 impl std::fmt::Display for Database {
@@ -21,8 +20,7 @@ impl Database {
     pub fn new(title: Option<String>) -> Self {
         Database {
             title,
-            tables: HashMap::new(),
-            order: vec![]
+            tables: BTreeMap::new()
         }
     }
 
@@ -33,9 +31,7 @@ impl Database {
 
     /// Adds the table to this database.
     pub fn add(&mut self, table: TableDesign) {
-        let title = table.table_design_title.clone();
-        self.tables.insert(title.clone(), table);
-        self.order.push(title);
+        self.tables.insert(table.table_design_title.clone(), table);
     }
 
     /// Gets a reference to a table in this database by its title.
@@ -107,8 +103,7 @@ impl Database {
 
         // Allows each table to complete saving before error is returned
         let mut err_message: Result<(), RustractError> = Ok(());
-        for key in &self.order {
-            let table = self.tables.get(key).unwrap();
+        for table in self.tables.values() {
             let result = table.export(folder);
             if result.is_err() {
                 err_message = result;

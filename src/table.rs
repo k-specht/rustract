@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{BTreeMap,HashSet};
 use std::fmt::{Display, Formatter};
 use serde_json::Value;
 use serde::{Serialize,Deserialize};
@@ -15,8 +14,7 @@ use crate::types::DataType;
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct TableDesign {
     pub table_design_title: String,
-    pub fields: HashMap<String, FieldDesign>,
-    order: Vec<String>
+    pub fields: BTreeMap<String, FieldDesign>
 }
 
 impl Display for TableDesign {
@@ -29,8 +27,7 @@ impl TableDesign {
     pub fn new(title: &str) -> Self {
         TableDesign {
             table_design_title: String::from(title),
-            fields: HashMap::new(),
-            order: vec![]
+            fields: BTreeMap::new()
         }
     }
 
@@ -82,9 +79,7 @@ impl TableDesign {
 
     /// Adds the provided field to this table.
     pub fn add(&mut self, field: FieldDesign) {
-        let title = field.field_design_title.clone();
-        self.fields.insert(title.clone(), field);
-        self.order.push(title);
+        self.fields.insert(field.field_design_title.clone(), field);
 
     }
 
@@ -124,9 +119,7 @@ impl TableDesign {
         second_output += &format!("export interface {}Input {{\n", title);
 
         // Exports each field to this file
-        for key in &self.order {
-            let field = self.get(key).unwrap();
-
+        for field in self.fields.values() {
             // Handles custom type names
             output += &if field.datatype == DataType::Enum {
                 field.export(false, Some(&enum_name(
@@ -167,9 +160,7 @@ impl TableDesign {
         let mut seen_enums: HashSet<Vec<String>> = HashSet::new();
         
         // Check if fields are enums and create any missing types
-        for key in &self.order {
-            let field = self.get(key).unwrap();
-
+        for field in self.fields.values() {
             // Ignore non-enum types
             if field.datatype == DataType::Enum {
                 if let Some(set) = &field.enum_set {
