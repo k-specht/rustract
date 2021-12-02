@@ -4,7 +4,7 @@ use regex::Regex;
 use serde_json::{Map, Value};
 use serde::{Serialize,Deserialize};
 use crate::error::RustractError;
-use crate::types::{DataType, DataTypeValue, HasBytes, HasLength};
+use crate::types::{DataType, DataTypeValue, HasBytes, HasLength, capitalize};
 
 /// Describes a database table field's design.
 /// 
@@ -232,43 +232,35 @@ impl FieldDesign {
     /// Creates an export type for this field's data to match against.
     ///
     /// This will fail if this field is not a member of a type.
+    /// Currently, only enums are supported.
     pub fn export_type(&self, table_name: &str) -> Result<String, RustractError> {
         let mut output: String = String::new();
-        let name: String = format!("export type {}{}Set {{", table_name, self.field_design_title);
+        let name: String = format!(
+            "export enum {} {{\n",
+            enum_name(table_name, &self.field_design_title)?
+        );
         output += &name;
 
-        match self.datatype {
-            DataType::Enum => {
-                // Add each enum element to the new type
-                if let Some(set) = self.enum_set {
-                    for element in set {
-                        output += &element;
-                        output += "\n";
+        if let DataType::Enum = self.datatype {
+            // Add each enum element to the new type
+            if let Some(set) = &self.enum_set {
+                for (index, element) in set.iter().enumerate() {
+                    output += "  ";
+                    output += element;
+                    if index < set.len() - 1 {
+                        output += ",";
                     }
-                } else {
-                    return Err(RustractError {
-                        message: format!("Field {} does not have an associated enum set", &self.field_design_title)
-                    });
+                    output += "\n";
                 }
-            },
-            DataType::Set => {
-                // Add each set element to the new type
-                if let Some(set) = self.set {
-                    for element in set {
-                        output += &element;
-                        output += "\n";
-                    }
-                } else {
-                    return Err(RustractError {
-                        message: format!("Field {} does not have an associated set", &self.field_design_title)
-                    });
-                }
-            },
-            _ => {
+            } else {
                 return Err(RustractError {
-                    message: format!("Field {} is not an enum or set. Other types are invalid here", &self.field_design_title)
+                    message: format!("Field {} does not have an associated enum set", &self.field_design_title)
                 });
             }
+        } else {
+            return Err(RustractError {
+                message: format!("Field {} is not an enum. Other types are invalid here for now", &self.field_design_title)
+            });
         }
 
         output += "}\n";
@@ -365,16 +357,31 @@ impl FieldDesign {
     }
 
     /// Exports this field to a String containing TypeScript.
-    pub fn export(&self, input: bool) -> String {
+    pub fn export(&self, input: bool, override_name: Option<&str>) -> String {
+        // Set enums or other types to be of the correct type
+        let mut name: &str = &self.datatype.typescript();
+        if let Some(new_name) = override_name {
+            name = new_name;
+        }
+
         let mut output = String::new();
         output += "  ";
         output += &self.field_design_title;
         output += if (input && self.generated) || !self.required { "?" } else { "" };
         output += ": ";
-        output += &self.datatype.typescript();
+        output += name;
         output += ",\n";
         output
     }
+}
+
+/// Creates an enum name for the table or field structs to use.
+pub(crate) fn enum_name(table_name: &str, field_name: &str) -> Result<String, RustractError> {
+    Ok(format!(
+        "{}{}Enum",
+        &capitalize(table_name)?,
+        &capitalize(field_name)?
+    ))
 }
 
 #[cfg(test)]

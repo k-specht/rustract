@@ -265,8 +265,9 @@ fn unwrap_str(str: &str) -> Result<String, RustractError> {
 
 /// Unwraps parenthesis to get the contents
 fn unwrap_parenthesis(line: &str) -> Result<String, RustractError> {
+    // Get the start and end positions of the parenthesis
     let start = match line.index_of("(") {
-        Some(index) => index,
+        Some(index) => index + 1,
         None => return Err(RustractError {
             message: format!(
                 "Could not unwrap parenthesis; line {} had no start",
@@ -283,6 +284,17 @@ fn unwrap_parenthesis(line: &str) -> Result<String, RustractError> {
             )
         })
     };
+
+    // Catch )( errors
+    if start > end || start >= line.len() {
+        return Err(RustractError {
+            message: format!(
+                "Could not unwrap parenthesis; line {} has invalid parenthesis format",
+                line
+            )
+        });
+    }
+
     Ok(line.to_ascii_lowercase()[start..end].to_string())
 }
 

@@ -5,6 +5,7 @@ use serde_json::Value;
 use serde::{Serialize,Deserialize};
 use crate::error::RustractError;
 use crate::field::FieldDesign;
+use crate::field::enum_name;
 use crate::types::capitalize;
 use crate::types::DataType;
 
@@ -125,14 +126,32 @@ impl TableDesign {
         // Exports each field to this file
         for key in &self.order {
             let field = self.get(key).unwrap();
-            output += &field.export(false);
-            second_output += &field.export(true);
+
+            // Handles custom type names
+            output += &if field.datatype == DataType::Enum {
+                field.export(false, Some(&enum_name(
+                    &self.table_design_title,
+                    &field.field_design_title
+                )?))
+            } else {
+                field.export(false, None)
+            };
+            second_output += &if field.datatype == DataType::Enum {
+                field.export(true, Some(&enum_name(
+                    &self.table_design_title,
+                    &field.field_design_title
+                )?))
+            } else {
+                field.export(true, None)
+            };
         }
 
         output += "}\n\n";
         second_output += "}\n";
         output += &second_output;
+        output += "\n";
 
+        // Creates any custom types that are needed
         output += &self.create_names()?;
 
         std::fs::write(new_path, output)?;
@@ -145,39 +164,27 @@ impl TableDesign {
     fn create_names(&self) -> Result<String, RustractError> {
         // Keep track of enums and sets to avoid duplicates in this table
         let mut output: String = String::new();
-        let mut seen_sets: HashSet<HashSet<String>> = HashSet::new();
         let mut seen_enums: HashSet<Vec<String>> = HashSet::new();
         
-        // Check if fields are enums or sets and create any missing types
+        // Check if fields are enums and create any missing types
         for key in &self.order {
             let field = self.get(key).unwrap();
-            match field.datatype {
-                DataType::Enum => {
-                    if let Some(set) = field.enum_set {
-                        if !seen_enums.contains(&set) {
-                            seen_enums.insert(set.clone());
-                            output += &field.export_type(&self.table_design_title)?;
-                        }
-                    } else {
-                        return Err(RustractError {
-                            message: format!("Field {} does not have an associated enum set", &field.field_design_title)
-                        });
+
+            // Ignore non-enum types
+            if field.datatype == DataType::Enum {
+                if let Some(set) = &field.enum_set {
+                    if !seen_enums.contains(set) {
+                        seen_enums.insert(set.clone());
+                        output += &format!(
+                            "/** Generated enum type for the {} table. */\n",
+                            &capitalize(&self.table_design_title)?
+                        );
+                        output += &field.export_type(&self.table_design_title)?;
                     }
-                },
-                DataType::Set => {
-                    if let Some(set) = field.set {
-                        if !seen_sets.contains(&set) {
-                            seen_sets.insert(set.clone());
-                            output += &field.export_type(&self.table_design_title)?;
-                        }
-                    } else {
-                        return Err(RustractError {
-                            message: format!("Field {} does not have an associated set", &field.field_design_title)
-                        });
-                    }
-                },
-                _ => {
-                   // Ignore other fields
+                } else {
+                    return Err(RustractError {
+                        message: format!("Field {} does not have an associated enum set", &field.field_design_title)
+                    });
                 }
             }
         }
