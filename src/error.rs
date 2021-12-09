@@ -58,3 +58,20 @@ impl Display for RustractError {
         write!(f, "{}", self.message)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_send() {
+        fn assert_send<T: Send>() {}
+        assert_send::<RustractError>();
+    }
+
+    #[test]
+    fn test_sync() {
+        fn assert_sync<T: Sync>() {}
+        assert_sync::<RustractError>();
+    }
+}
