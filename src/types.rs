@@ -211,8 +211,6 @@ pub(crate) trait IndexOf {
     fn index_of(&self, sequence: &str) -> Option<usize>;
 
     /// Retrieves the next index of the first sequence matched.
-    /// 
-    /// Note that 
     fn next_index_of(&self, sequence: &str, from: usize) -> Option<usize>;
 }
 

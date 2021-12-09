@@ -17,7 +17,6 @@ pub fn get_routes() -> impl Filter<Extract=impl Reply, Error=Rejection> + Clone 
 
 // GET <domain>/api/test/hello
 /// A function that returns a warp route for Hello World.
-/// TODO: Database here needs to be wrapped inside an immutable thread-safe type.
 fn register() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path!("register")
         .and(warp::post())
@@ -29,7 +28,7 @@ fn register() -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone
 
 /// Extracts the data from the request body and verifies it in the process.
 /// 
-/// TODO: This method's error handling could be cleaned up.
+/// TODO: This method's error handling could probably be cleaned up.
 async fn extract(body: serde_json::Value) -> Result<HashMap<String, DataTypeValue>, warp::reject::Rejection> {
     // The map this function will extract from the JSON body
     let mut map: HashMap<String, DataTypeValue> = HashMap::new();

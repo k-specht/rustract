@@ -35,12 +35,14 @@ impl Database {
     }
 
     /// Gets a reference to a table in this database by its title.
+    ///
     /// If there are duplicates, it retrieves the first.
     pub fn get(&self, title: &str) -> Option<&TableDesign> {
         self.tables.get(title)
     }
 
     /// Gets a table in this database by its title.
+    ///
     /// If there are duplicates, it retrieves the first.
     pub fn get_mut(&mut self, title: &str) -> Option<&mut TableDesign> {
         self.tables.get_mut(title)
@@ -129,8 +131,6 @@ fn read_name(line: &str) -> Result<String, RustractError> {
 }
 
 /// Attempts to add the schema line's field data to the provided table.
-///
-/// TODO: Add support for each Datatype (currently each type init is based off of MySQL's InnoDB).
 fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError> {
     // Gather the tokens in lower case, separated by a single space each
     let line = source.trim().to_ascii_lowercase();

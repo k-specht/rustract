@@ -7,9 +7,6 @@ use crate::error::RustractError;
 use crate::types::{DataType, DataTypeValue, HasBytes, HasLength, capitalize};
 
 /// Describes a database table field's design.
-/// 
-/// This may be more strict than the database allows,
-/// but this allows more compatibility and type safety.
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct FieldDesign {
     pub field_design_title: String,
@@ -95,7 +92,6 @@ impl FieldDesign {
             },
             DataType::Json => {
                 let json_object: Map<String, Value> = self.test_type(json.as_object())?.clone();
-                // TODO: Decide whether custom JSON field type check will be supported
                 Ok(DataTypeValue::Json(json_object))
             },
             DataType::Signed64 => {
@@ -150,7 +146,6 @@ impl FieldDesign {
                 Ok(DataTypeValue::Float64(json_float))
             },
             DataType::Float32 => {
-                // TODO: Handle possible float precision loss
                 let json_float = self.test_type(json.as_f64())?;
                 self.test_length::<f32>(
                     &(json_float as f32)
@@ -162,7 +157,6 @@ impl FieldDesign {
                 Ok(DataTypeValue::Boolean(json_bool))
             },
             DataType::Bit => {
-                // TODO: Refactor bit check
                 let json_bit = self.test_type(json.as_u64())?;
                 let size = crate::types::digits(&json_bit);
                 if size > 1 {
@@ -231,8 +225,7 @@ impl FieldDesign {
 
     /// Creates an export type for this field's data to match against.
     ///
-    /// This will fail if this field is not a member of a type.
-    /// Currently, only enums are supported.
+    /// This will currently fail if this field is not an enum.
     pub fn export_type(&self, table_name: &str) -> Result<String, RustractError> {
         let mut output: String = String::new();
         let name: String = format!(

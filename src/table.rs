@@ -9,8 +9,6 @@ use crate::types::capitalize;
 use crate::types::DataType;
 
 /// Describes a database table's design.
-/// 
-/// TODO: Change Vector to HashMap with the titles as keys.
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub struct TableDesign {
     pub table_design_title: String,
@@ -84,13 +82,15 @@ impl TableDesign {
     }
 
     /// Gets a reference to the specified field by its title.
-    /// If there's a duplicate, the first is returned.
+    ///
+    /// If there is a duplicate, the first is returned.
     pub fn get(&self, title: &str) -> Option<&FieldDesign> {
         self.fields.get(title)
     }
 
     /// Gets the specified field by its title.
-    /// If there's a duplicate, the first is returned.
+    ///
+    /// If there is a duplicate, the first is returned.
     pub fn get_mut(&mut self, title: &str) -> Option<&mut FieldDesign> {
         self.fields.get_mut(title)
     }
@@ -153,9 +153,9 @@ impl TableDesign {
 
     /// Sets up proper enum and set types.
     ///
-    /// Note: This may create duplicates, edit manually.
+    /// This process may create duplicates if multiple tables use the enum.
     fn create_names(&self) -> Result<String, RustractError> {
-        // Keep track of enums and sets to avoid duplicates in this table
+        // Keep track of enums to avoid duplicates in this table
         let mut output: String = String::new();
         let mut seen_enums: HashSet<Vec<String>> = HashSet::new();
         
