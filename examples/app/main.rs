@@ -31,7 +31,7 @@ async fn main() {
 /// Serves the warp server on localhost, port 3030.
 async fn start() -> Result<(), RustractError> {
     println!("Server started on port 3030!");
-    warp::serve(routes::get_routes().recover(handle_rejection)).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes::gen_routes().recover(handle_rejection)).run(([127, 0, 0, 1], 3030)).await;
     println!("Server stopped.");
     Ok(())
 }

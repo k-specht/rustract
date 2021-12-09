@@ -9,7 +9,7 @@ use crate::DB_DESIGN;
 use crate::CustomError;
 
 /// Returns the route tree to be served.
-pub fn get_routes() -> impl Filter<Extract=impl Reply, Error=Rejection> + Clone  {
+pub fn gen_routes() -> impl Filter<Extract=impl Reply, Error=Rejection> + Clone  {
     // <domain>/api/
     warp::path!("api" / ..)
         .and(register())
@@ -35,10 +35,10 @@ async fn extract(body: serde_json::Value) -> Result<HashMap<String, DataTypeValu
 
     // Checks to make sure the data exists/is structured properly
     if let Some(data_map) = body.as_object() {
-        for key in DB_DESIGN.get("user").unwrap().fields.keys() {
-            let field = DB_DESIGN.get("user")
+        for key in DB_DESIGN.table("user").unwrap().fields.keys() {
+            let field = DB_DESIGN.table("user")
                 .unwrap()
-                .get(key)
+                .field(key)
                 .unwrap();
             if let Some(data) = data_map.get(&field.field_design_title) {
                 match field.extract(data) {

@@ -84,14 +84,14 @@ impl TableDesign {
     /// Gets a reference to the specified field by its title.
     ///
     /// If there is a duplicate, the first is returned.
-    pub fn get(&self, title: &str) -> Option<&FieldDesign> {
+    pub fn field(&self, title: &str) -> Option<&FieldDesign> {
         self.fields.get(title)
     }
 
     /// Gets the specified field by its title.
     ///
     /// If there is a duplicate, the first is returned.
-    pub fn get_mut(&mut self, title: &str) -> Option<&mut FieldDesign> {
+    pub fn field_mut(&mut self, title: &str) -> Option<&mut FieldDesign> {
         self.fields.get_mut(title)
     }
 

@@ -37,14 +37,14 @@ impl Database {
     /// Gets a reference to a table in this database by its title.
     ///
     /// If there are duplicates, it retrieves the first.
-    pub fn get(&self, title: &str) -> Option<&TableDesign> {
+    pub fn table(&self, title: &str) -> Option<&TableDesign> {
         self.tables.get(title)
     }
 
     /// Gets a table in this database by its title.
     ///
     /// If there are duplicates, it retrieves the first.
-    pub fn get_mut(&mut self, title: &str) -> Option<&mut TableDesign> {
+    pub fn table_mut(&mut self, title: &str) -> Option<&mut TableDesign> {
         self.tables.get_mut(title)
     }
 
@@ -74,7 +74,7 @@ impl Database {
 
             // Add each line to the database
             if reading {
-                add_to_db(line, db.get_mut(&table_title).unwrap())?;
+                add_to_db(line, db.table_mut(&table_title).unwrap())?;
             }
         }
         
@@ -158,7 +158,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
         match tokens.get(2) {
             Some(val) => {
                 // Sets the requested field to primary
-                match table.get_mut(&unwrap_str(*val)?) {
+                match table.field_mut(&unwrap_str(*val)?) {
                     Some(value) => value,
                     None => {
                         return Err(RustractError {
@@ -205,7 +205,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
             field.enum_set = Some(extract_csl(&descriptor)?);
         } else if descriptor.starts_with("set(") {
             field.datatype = DataType::Set;
-            field.set = Some(as_set(extract_csl(&descriptor)?));
+            field.set = Some(into_set(extract_csl(&descriptor)?));
         } else if descriptor.contains("tinyint") {
             field.datatype = DataType::Byte;
         } else if descriptor.contains("json") {
@@ -228,7 +228,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
 /// Converts the vector into a HashSet.
 /// 
 /// Using a From implementation was avoided here.
-pub(crate) fn as_set(vector: Vec<String>) -> HashSet<String> {
+pub(crate) fn into_set(vector: Vec<String>) -> HashSet<String> {
     let mut set: HashSet<String> = HashSet::new();
     for value in vector {
         set.insert(value);
@@ -328,8 +328,8 @@ mod test {
         let db = Database::from_schema(schema_path).expect("Schema test failed");
         assert!(!db.is_empty());
         let db_string = db.to_string();
-        let table = db.get("user").unwrap_or_else(|| panic!("Schema test failed: No user table read: {}", &db_string));
-        let field = table.get("email").unwrap_or_else(|| panic!("Schema test failed: No email read: {}", &db_string));
+        let table = db.table("user").unwrap_or_else(|| panic!("Schema test failed: No user table read: {}", &db_string));
+        let field = table.field("email").unwrap_or_else(|| panic!("Schema test failed: No email read: {}", &db_string));
         assert!(field.required);
     }
 
@@ -337,8 +337,8 @@ mod test {
     fn reading_test() {
         // Gets the date field from the test schema
         let db = Database::from_schema("./tests/schema.sql").unwrap();
-        let table_ref: &TableDesign = db.get("user").unwrap();
-        let field_ref: &FieldDesign = table_ref.get("registered").unwrap();
+        let table_ref: &TableDesign = db.table("user").unwrap();
+        let field_ref: &FieldDesign = table_ref.field("registered").unwrap();
 
         // The good date is below the character limit of 10 (for ISO Strings)
         let good = serde_json::json!({"registered": "2021-01-01"});

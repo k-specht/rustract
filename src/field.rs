@@ -464,7 +464,7 @@ mod test {
             increment: false,
             generated: true,
             enum_set: None,
-            set: Some(crate::db::as_set(vec!["test".to_string(),"set".to_string()]))
+            set: Some(crate::db::into_set(vec!["test".to_string(),"set".to_string()]))
         };
         assert_eq!(field.extract(json.get("set").unwrap()).unwrap(), DataTypeValue::Set("test".to_string()));
     }
