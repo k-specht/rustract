@@ -1,4 +1,4 @@
-# rustract
+# rustract [![Latest Version](https://img.shields.io/crates/v/rustract.svg)](https://crates.io/crates/rustract)
 A Rust library for safely extracting JSON fields while also checking data bounds.
 
 # Installation:
