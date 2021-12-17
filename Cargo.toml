@@ -3,6 +3,8 @@ name = "rustract"
 version = "0.1.0"
 edition = "2018"
 authors = ["Käthe Specht <xpecht@gmail.com>"]
+description = "A Rust library for safely extracting JSON fields while also checking data bounds."
+keywords = [ "json", "extractor", "webapp" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
