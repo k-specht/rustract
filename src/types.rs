@@ -283,7 +283,7 @@ impl IndexOf for &str {
 pub(crate) fn capitalize(string: &str) -> Result<String, RustractError> {
     return if string.is_empty() {
         Err(RustractError {
-            message: "Cannot capitalize an empty string.".to_string(),
+            message: "cannot capitalize an empty string".to_string(),
         })
     } else {
         Ok(format!("{}{}", &string[0..1].to_uppercase(), &string[1..string.len()]))

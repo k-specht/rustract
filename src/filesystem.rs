@@ -16,7 +16,7 @@ pub(crate) fn read_file(path: &str) -> Result<String, RustractError> {
     let mut file = match File::open(path) {
         Ok(file) => file,
         Err(err) => return Err(RustractError {
-            message: format!("Failed to find file <{}>: {}", path, err.to_string())
+            message: format!("failed to find file <{}>: {}", path, err.to_string())
         })
     };
     let mut s = String::new();

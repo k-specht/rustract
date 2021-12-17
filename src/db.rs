@@ -126,7 +126,7 @@ fn read_name(line: &str) -> Result<String, RustractError> {
     }
 
     Err(RustractError {
-        message: format!("No table name found in schema line: {}.", line),
+        message: format!("no table name found in schema line: {}", line),
     })
 }
 
@@ -142,12 +142,12 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
     // Creates a blank field from the line's field name
     if tokens.is_empty() {
         return Err(RustractError {
-            message: format!("Line {} did not contain any field data.", line),
+            message: format!("line {} did not contain any field data.", line),
         });
     }
     if tokens[0].len() < 3 {
         return Err(RustractError {
-            message: format!("Table field {} cannot have empty name. Line: {}", tokens[0], line),
+            message: format!("table field {} cannot have empty name, line: {}", tokens[0], line),
         });
     }
     let mut field = FieldDesign::new("temp");
@@ -162,7 +162,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
                     Some(value) => value,
                     None => {
                         return Err(RustractError {
-                            message: format!("Corrupt primary key formation: {} does not exist in new table.", *val)
+                            message: format!("corrupt primary key formation: {} does not exist in new table", *val)
                         });
                     }
                 }.primary = true;
@@ -170,7 +170,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
             },
             None => {
                 return Err(RustractError {
-                    message: String::from("Primary key statement found, but end of line reached."),
+                    message: String::from("primary key statement found, but end of line reached"),
                 });
             }
         }
@@ -195,7 +195,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
             let index = match tokens[1].next_index_of(")", 7) {
                 Some(val) => val,
                 None => return Err(RustractError {
-                    message: format!("Schema line {} has invalid characters in varchar.", line),
+                    message: format!("schema line {} has invalid characters in varchar", line),
                 })
             };
             field.characters = Some(tokens[1][8..index].parse()?);
@@ -212,7 +212,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
             field.datatype = DataType::Json;
         } else {
             return Err(RustractError {
-                message: format!("Failed to read schema, {} is not a valid token.", descriptor),
+                message: format!("failed to read schema, {} is not a valid token", descriptor),
             });
         }
 
@@ -245,7 +245,7 @@ fn unwrap_str(str: &str) -> Result<String, RustractError> {
             let pos_2 = str.next_index_of("`", pos_1+1);
             if pos_2.is_none() {
                 return Err(RustractError {
-                    message: format!("String {} does not have two instances of `.", str),
+                    message: format!("string {} does not have two instances of `'s", str),
                 });
             }
 
@@ -253,7 +253,7 @@ fn unwrap_str(str: &str) -> Result<String, RustractError> {
             Ok(str[pos_1+1..pos_2.unwrap()].to_string())
         },
         false => Err(RustractError {
-            message: format!("String slice does not match the format `val`: {}", str),
+            message: format!("string slice does not match the format `val`: {}", str),
         })
     }
 }
@@ -265,7 +265,7 @@ fn unwrap_parenthesis(line: &str) -> Result<String, RustractError> {
         Some(index) => index + 1,
         None => return Err(RustractError {
             message: format!(
-                "Could not unwrap parenthesis; line {} had no start",
+                "could not unwrap parenthesis, line {} had no start",
                 line
             )
         })
@@ -274,7 +274,7 @@ fn unwrap_parenthesis(line: &str) -> Result<String, RustractError> {
         Some(index) => index,
         None => return Err(RustractError {
             message: format!(
-                "Could not unwrap parenthesis; line {} had no end",
+                "could not unwrap parenthesis, line {} had no end",
                 line
             )
         })
@@ -284,7 +284,7 @@ fn unwrap_parenthesis(line: &str) -> Result<String, RustractError> {
     if start > end || start >= line.len() {
         return Err(RustractError {
             message: format!(
-                "Could not unwrap parenthesis; line {} has invalid parenthesis format",
+                "could not unwrap parenthesis, line {} has invalid parenthesis format",
                 line
             )
         });
@@ -312,7 +312,7 @@ mod test {
 
     #[test]
     fn unwrap_test() {
-        let unwrap_me = unwrap_str("I wrapped (`this`)...").expect("Failed to unwrap str: ");
+        let unwrap_me = unwrap_str("I wrapped (`this`)...").expect("failed to unwrap str");
         assert_eq!(unwrap_me, String::from("this"));
 
         // Tests empty strings
@@ -325,11 +325,11 @@ mod test {
     #[test]
     fn schema_test() {
         let schema_path = "./tests/schema.sql";
-        let db = Database::from_schema(schema_path).expect("Schema test failed");
+        let db = Database::from_schema(schema_path).expect("schema test failed");
         assert!(!db.is_empty());
         let db_string = db.to_string();
-        let table = db.table("user").unwrap_or_else(|| panic!("Schema test failed: No user table read: {}", &db_string));
-        let field = table.field("email").unwrap_or_else(|| panic!("Schema test failed: No email read: {}", &db_string));
+        let table = db.table("user").unwrap_or_else(|| panic!("schema test failed, no user table read: {}", &db_string));
+        let field = table.field("email").unwrap_or_else(|| panic!("schema test failed, no email read: {}", &db_string));
         assert!(field.required);
     }
 

@@ -80,7 +80,7 @@ impl FieldDesign {
                     if byte_string.len() > bytes as usize {
                         return Err(RustractError {
                             message: format!(
-                                "Bytestring {} is {} bytes long; max size is {} bytes.",
+                                "bytestring {} is {} bytes long, but max size is {} bytes",
                                 self.field_design_title,
                                 byte_string.len(),
                                 bytes
@@ -162,7 +162,7 @@ impl FieldDesign {
                 if size > 1 {
                     return Err(RustractError {
                         message: format!(
-                            "Expected {} to be a bit, but size was {}. Number: \"{}\"",
+                            "expected {} to be a bit, but size was {}, number: \"{}\"",
                             self.field_design_title,
                             size,
                             json_bit
@@ -188,7 +188,7 @@ impl FieldDesign {
                     } else {
                         Err(RustractError {
                             message: format!(
-                                "Expected {} to be within the enum range {}..{}.",
+                                "expected {} to be within the enum range {}..{}",
                                 json_enum,
                                 0,
                                 list.len()
@@ -197,7 +197,7 @@ impl FieldDesign {
                     }
                 } else {
                     Err(RustractError {
-                        message: "Internal error: enum field has no enum attached!".to_string()
+                        message: "internal error, enum field has no enum attached".to_string()
                     })
                 }
             },
@@ -209,14 +209,14 @@ impl FieldDesign {
                     } else {
                         Err(RustractError {
                             message: format!(
-                                "Value {} is not an element of this set.",
+                                "value {} is not an element of this set",
                                 json_string
                             )
                         })
                     }
                 } else {
                     Err(RustractError {
-                        message: "Internal error: set field has no set attached!".to_string()
+                        message: "internal error, set field has no set attached".to_string()
                     })
                 }
             }
@@ -247,12 +247,12 @@ impl FieldDesign {
                 }
             } else {
                 return Err(RustractError {
-                    message: format!("Field {} does not have an associated enum set", &self.field_design_title)
+                    message: format!("field {} does not have an associated enum set", &self.field_design_title)
                 });
             }
         } else {
             return Err(RustractError {
-                message: format!("Field {} is not an enum. Other types are invalid here for now", &self.field_design_title)
+                message: format!("field {} is not an enum, other types are invalid here for now", &self.field_design_title)
             });
         }
 
@@ -266,7 +266,7 @@ impl FieldDesign {
             Some(val) => Ok(val),
             None => Err(RustractError {
                 message: format!(
-                    "Field {} is not of type {}. (JSON cast failed).",
+                    "field {} is not of type {} (JSON cast failed)",
                     self.field_design_title,
                     self.datatype
                 ),
@@ -282,7 +282,7 @@ impl FieldDesign {
             match value.length() > max {
                 true => return Err(RustractError {
                     message: format!(
-                        "Field {} is over the size limit of {}.\n(Size: {}).",
+                        "field {} is over the size limit of {} (size: {})",
                         self.field_design_title,
                         max,
                         value.length()
@@ -301,7 +301,7 @@ impl FieldDesign {
         if self.bytes.is_some() && value.byte_length() > self.bytes.unwrap() {
             return Err(RustractError {
                 message: format!(
-                    "Field {} is over the byte limit of {}.\n(Bytes: {}).",
+                    "field {} is over the byte limit of {} (bytes: {}).",
                     self.field_design_title,
                     self.bytes.unwrap(),
                     value.byte_length()
@@ -319,7 +319,7 @@ impl FieldDesign {
             Ok(val) => Ok(val),
             Err(_) => Err(RustractError {
                 message: format!(
-                    "Field {} is over the byte limit for type {}.",
+                    "field {} is over the byte limit for type {}",
                     self.field_design_title,
                     self.datatype
                 ),
@@ -338,7 +338,7 @@ impl FieldDesign {
             if !regex.is_match(value.as_ref()) {
                 return Err(RustractError {
                     message: format!(
-                        "Field {} failed to match the regex restriction of {}.",
+                        "field {} failed to match the regex restriction of {}",
                         self.field_design_title,
                         regex.to_string()
                     ),

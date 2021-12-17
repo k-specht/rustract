@@ -46,8 +46,8 @@ mod test {
     fn test_error() {
         let error = init("", false);
         match error {
-            Ok(_) => panic!("Test failed, init function did not produce errors."),
-            Err(e) => assert_eq!(e.message, "Failed to find file <>: No such file or directory (os error 2)"),
+            Ok(_) => panic!("test failed, init function did not produce errors"),
+            Err(e) => assert_eq!(e.message, "failed to find file <>: No such file or directory (os error 2)"),
         };
     }
 
@@ -66,13 +66,13 @@ mod test {
         let example_config = "{\n  \"db_path\":\"./example_database.json\",\n \"schema_path\": \"./tests/schema.sql\"\n}";
 
         std::fs::File::create("./example_config.json")
-            .expect("Failed to create config file.");
+            .expect("failed to create config file");
         std::fs::write("./example.json", example_config)
-            .expect("Failed to write to config file.");
+            .expect("failed to write to config file");
     }
 
     /// Deletes the example config after testing completes.
     fn delete_config() {
-        std::fs::remove_file("./example_config.json").expect("Failed to delete file.");
+        std::fs::remove_file("./example_config.json").expect("failed to delete file");
     }
 }

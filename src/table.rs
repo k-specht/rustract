@@ -51,7 +51,7 @@ impl TableDesign {
             if !matched && field_design.required && (!field_design.generated || !input) {
                 return Err(RustractError {
                     message: format!(
-                        "The {} field is required in {}, but was not included in the request.",
+                        "the {} field is required in {}, but was not included in the request",
                         field_design.field_design_title,
                         self.table_design_title
                     ),
@@ -174,7 +174,7 @@ impl TableDesign {
                     }
                 } else {
                     return Err(RustractError {
-                        message: format!("Field {} does not have an associated enum set", &field.field_design_title)
+                        message: format!("field {} does not have an associated enum set", &field.field_design_title)
                     });
                 }
             }
@@ -217,7 +217,7 @@ mod test {
         });
         let fields = match json["payload"]["fields"].as_array() {
             Some(val) => val,
-            None => panic!("Test failed, could not read JSON data as an array."),
+            None => panic!("test failed, could not read JSON data as an array"),
         };
         table_design.test(fields, true).unwrap();
     }

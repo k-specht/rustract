@@ -17,22 +17,22 @@ mod routes;
 // This is important because Warp's closures cannot take ownership of a non-static reference to the database.
 lazy_static! {
     pub static ref DB_DESIGN: Database = init("./examples/app/example_config.json", true)
-        .expect("Failed to start example.");
+        .expect("failed to start example");
 }
 
 /// Entry point into the program.
 #[tokio::main]
 async fn main() {
     // Lazy static will initialize it before it is used in the server (otherwise it will lag the first request to the server)
-    println!("Database Initialized: {}.", !DB_DESIGN.is_empty());
-    start().await.expect("Server stopped, exiting app...");
+    println!("database initialized: {}.", !DB_DESIGN.is_empty());
+    start().await.expect("server stopped, exiting app");
 }
 
 /// Serves the warp server on localhost, port 3030.
 async fn start() -> Result<(), RustractError> {
-    println!("Server started on port 3030!");
+    println!("server started on port 3030");
     warp::serve(routes::gen_routes().recover(handle_rejection)).run(([127, 0, 0, 1], 3030)).await;
-    println!("Server stopped.");
+    println!("server stopped");
     Ok(())
 }
 
@@ -81,7 +81,7 @@ pub async fn handle_rejection(err: warp::Rejection) -> Result<impl warp::Reply, 
         code = warp::http::StatusCode::METHOD_NOT_ALLOWED;
         message = "Method Not Allowed".to_string();
     } else {
-        // In case we missed something - log and respond with 500
+        // In case something was missed - log and respond with 500
         eprintln!("unhandled rejection: {:?}", err);
         code = warp::http::StatusCode::INTERNAL_SERVER_ERROR;
         message = format!("Unhandled rejection: {:?}", err);

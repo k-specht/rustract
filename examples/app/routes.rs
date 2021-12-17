@@ -51,14 +51,14 @@ async fn extract(body: serde_json::Value) -> Result<HashMap<String, DataTypeValu
                     Err(error) => {
                         return Err(warp::reject::custom(CustomError {
                             err_type: ErrorType::BadRequest,
-                            message: format!("Field {} is not formatted properly: {}", &field.field_design_title, error.to_string())
+                            message: format!("field {} is not formatted properly: {}", &field.field_design_title, error.to_string())
                         }));
                     }
                 }
             } else if field.required && !field.generated {
                 return Err(warp::reject::custom(CustomError {
                     err_type: ErrorType::BadRequest,
-                    message: format!("Field {} is listed as required, but was not included in the request body.", &field.field_design_title),
+                    message: format!("field {} is listed as required, but was not included in the request body", &field.field_design_title),
                 }));
             }
         }
@@ -66,7 +66,7 @@ async fn extract(body: serde_json::Value) -> Result<HashMap<String, DataTypeValu
     } else {
         Err(warp::reject::custom(CustomError {
             err_type: ErrorType::BadRequest,
-            message: format!("Failed to parse JSON as object. JSON: \"{}\". (Err: Body should be a map)", body.to_string()),
+            message: format!("failed to parse JSON as object, JSON: \"{}\" (Err: Body should be a map)", body.to_string()),
         }))
     }
 }
@@ -76,15 +76,15 @@ async fn insert(req: HashMap<String, DataTypeValue>) -> Result<String, warp::rej
     // The req variable now has all the User fields as specified in the field design
     let name = match req.get("name").unwrap() {
         DataTypeValue::String(data) => data,
-        _ => panic!("Invalid data type retrieved.")
+        _ => panic!("invalid data type retrieved")
     };
     let email = match req.get("email").unwrap() {
         DataTypeValue::String(data) => data,
-        _ => panic!("Invalid data type retrieved.")
+        _ => panic!("invalid data type retrieved")
     };
     let date = match req.get("date").unwrap() {
         DataTypeValue::String(data) => data,
-        _ => panic!("Invalid data type retrieved.")
+        _ => panic!("invalid data type retrieved")
     };
 
     // An SQL query can be made here that safely inserts the verified data
