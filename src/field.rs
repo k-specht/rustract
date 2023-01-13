@@ -379,6 +379,7 @@ pub(crate) fn enum_name(table_name: &str, field_name: &str) -> Result<String, Ru
 
 #[cfg(test)]
 mod test {
+    use crate::types::IntoHashSet;
     use super::*;
 
     #[test]
@@ -464,7 +465,7 @@ mod test {
             increment: false,
             generated: true,
             enum_set: None,
-            set: Some(crate::db::into_set(vec!["test".to_string(),"set".to_string()]))
+            set: Some(vec!["test".to_string(),"set".to_string()].into_set())
         };
         assert_eq!(field.extract(json.get("set").unwrap()).unwrap(), DataTypeValue::Set("test".to_string()));
     }

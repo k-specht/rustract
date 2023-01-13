@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use serde::{Serialize,Deserialize};
@@ -277,6 +278,22 @@ impl IndexOf for &str {
             }
         }
         None
+    }
+}
+
+/// A trait that allows converting Vectors into HashSets.
+pub trait IntoHashSet {
+    /// Converts this vector into a HashSet.
+    fn into_set(self) -> HashSet<String>;
+}
+
+impl IntoHashSet for Vec<String> {
+    fn into_set(self) -> HashSet<String> {
+        let mut set: HashSet<String> = HashSet::new();
+        for value in self {
+            set.insert(value);
+        }
+        set
     }
 }
 

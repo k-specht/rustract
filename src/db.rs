@@ -1,23 +1,31 @@
-use std::collections::{HashSet, BTreeMap};
+use std::collections::BTreeMap;
 
-use crate::{error::RustractError, field::FieldDesign, filesystem::read_file, table::TableDesign, types::{DataType, IndexOf}};
+use crate::{error::RustractError, field::FieldDesign, filesystem::read_file, table::TableDesign, types::{DataType, IndexOf, IntoHashSet}};
 
 /// A database schema struct that can be used for testing JSON.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Database {
-    pub title: Option<String>,
+    pub title: String,
     pub tables: BTreeMap<String, TableDesign>
 }
 
 impl std::fmt::Display for Database {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let title = if self.title.is_some() {&self.title.as_ref().unwrap()} else { "Database" };
-        write!(f, "{}: ({:?})", title, self.tables)
+        write!(f, "{}: ({:?})", self.title, self.tables)
     }
 }
 
 impl Database {
-    pub fn new(title: Option<String>) -> Self {
+    /// Constructs a new instance of the Database struct.
+    pub fn new() -> Self {
+        Database {
+            title: "Database".to_string(),
+            tables: BTreeMap::new()
+        }
+    }
+
+    /// Constructs a new instance of the Database struct using the given title.
+    pub fn from_string(title: String) -> Self {
         Database {
             title,
             tables: BTreeMap::new()
@@ -52,7 +60,7 @@ impl Database {
     pub fn from_schema(schema_path: &str) -> Result<Self, RustractError> {
         let schema = read_file(schema_path)?;
         let mut reading = false;
-        let mut db = Database::new(None);
+        let mut db = Database::new();
         let mut table_title = String::new();
 
         // Loop until all tables are found
@@ -132,7 +140,7 @@ fn read_name(line: &str) -> Result<String, RustractError> {
 
 /// Attempts to add the schema line's field data to the provided table.
 fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError> {
-    // Gather the tokens in lower case, separated by a single space each
+    // Gathers the tokens in lower case, separated by a single space each
     let line = source.trim().to_ascii_lowercase();
     if line.is_empty() {
         return Ok(())
@@ -205,7 +213,7 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
             field.enum_set = Some(extract_csl(&descriptor)?);
         } else if descriptor.starts_with("set(") {
             field.datatype = DataType::Set;
-            field.set = Some(into_set(extract_csl(&descriptor)?));
+            field.set = Some(extract_csl(&descriptor)?.into_set());
         } else if descriptor.contains("tinyint") {
             field.datatype = DataType::Byte;
         } else if descriptor.contains("json") {
@@ -223,17 +231,6 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
 
     // Unsupported lines like index declarations are ignored for compatibility
     Ok(())
-}
-
-/// Converts the vector into a HashSet.
-/// 
-/// Using a From implementation was avoided here.
-pub(crate) fn into_set(vector: Vec<String>) -> HashSet<String> {
-    let mut set: HashSet<String> = HashSet::new();
-    for value in vector {
-        set.insert(value);
-    }
-    set
 }
 
 /// Pulls a value out of a sql string-wrapped slice.
@@ -310,10 +307,11 @@ fn extract_csl(line_src: &str) -> Result<Vec<String>, RustractError> {
 mod test {
     use super::*;
 
+    /// Tests pulling values out of SQL string-wrapped slices.
     #[test]
     fn unwrap_test() {
         let unwrap_me = unwrap_str("I wrapped (`this`)...").expect("failed to unwrap str");
-        assert_eq!(unwrap_me, String::from("this"));
+        assert_eq!(unwrap_me, "this".to_string());
 
         // Tests empty strings
         assert_eq!("", unwrap_str("``").unwrap());
@@ -322,6 +320,7 @@ mod test {
         assert_eq!("e", unwrap_str("`e`").unwrap());
     }
 
+    /// Tests the Database extraction code to ensure it obtains the data from the dump.
     #[test]
     fn schema_test() {
         let schema_path = "./tests/schema.sql";
@@ -333,6 +332,7 @@ mod test {
         assert!(field.required);
     }
 
+    /// Tests the Rust field bounds extracted from a Database dump.
     #[test]
     fn reading_test() {
         // Gets the date field from the test schema
@@ -342,12 +342,15 @@ mod test {
 
         // The good date is below the character limit of 10 (for ISO Strings)
         let good = serde_json::json!({"registered": "2021-01-01"});
-        let bad = serde_json::json!({"registered": "2021-01-001"}); 
+        let bad = serde_json::json!({"registered": "2021-01-001"});
 
         field_ref.extract(&good["registered"]).unwrap();
         assert!(field_ref.extract(&bad["registered"]).is_err());
     }
 
+    /// Creates a test export of the types extracted from the Database dump.
+    /// 
+    /// These TypeScript types should be compiled manually to complete the test.
     #[test]
     fn typescript_test() {
         let db = Database::from_schema("./tests/schema.sql").unwrap();
