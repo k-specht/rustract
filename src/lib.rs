@@ -14,9 +14,25 @@ use filesystem::get_config;
 use crate::db::Database;
 
 /// Initializes a local library based on the input settings.
-pub fn init(json_path: &str, reload_schema: bool) -> Result<Database, RustractError> {
-    // Sets up filepaths
-    let config = get_config(json_path)?;
+/// 
+/// If this is the first time running the library, set `config_path` to `None`,
+/// and provide a `dump_path` leading to the mysql dump of the database.
+/// Also, set `reload_schema` to `true`.
+/// 
+/// If anything is not provided, this function will use defaults.
+/// This saves the `Config` and `Database` `json`'s to the working directory.
+/// 
+/// If the provided schema path differs from the saved one, it will be overwritten.
+pub fn init(config_path: Option<&str>, schema_path: Option<&str>, reload_schema: bool) -> Result<Database, RustractError> {
+    // Creates a config if none is provided, then sets up directory structure
+    let config = if let Some(path) = config_path { get_config(path)? } else {
+        let mut c = types::Config::default();
+        if let Some(schema) = schema_path { 
+            c.schema_path = schema.to_string();
+        }
+        c.save("./config.json")?;
+        c
+    };
     let type_path = if config.type_path.is_some() { config.type_path.unwrap() } else { "./types/".to_string() };
 
     // Loads the database from the path, or from the schema if no database is found
@@ -44,7 +60,7 @@ mod test {
 
     #[test]
     fn test_error() {
-        let error = init("", false);
+        let error = init(Some(""), None, false);
         match error {
             Ok(_) => panic!("test failed, init function did not produce errors"),
             Err(e) => assert_eq!(e.message(), "failed to find file <>: No such file or directory (os error 2)".to_string()),

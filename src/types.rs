@@ -13,6 +13,28 @@ pub struct Config {
     pub type_path: Option<String>,
 }
 
+impl Config {
+    /// Creates an instance of this struct from the JSON file at the specified path.
+    pub fn from(filepath: &str) -> Result<Self, RustractError> {
+        Ok(serde_json::from_str(&std::fs::read_to_string(filepath)?)?)
+    }
+
+    /// Saves the configuration info to a JSON file for quick loading.
+    pub fn save(&self, filepath: &str) -> Result<(), RustractError> {
+        std::fs::write(
+            filepath,
+            serde_json::to_string_pretty(self)?
+        )?;
+        Ok(())
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self { db_path: "./database.json".to_string(), schema_path: "./dump.sql".to_string(), type_path: None }
+    }
+}
+
 /// Defines a possible type of Database Data.
 #[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
 pub enum DataType {
