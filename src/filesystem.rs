@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 
-use crate::error::RustractError;
+use crate::error::{RustractError, GenericError};
 use crate::types::Config;
 
 /// Gets the config settings from the specified configuration file.
@@ -15,9 +15,9 @@ pub fn get_config(json_path: &str) -> Result<Config, RustractError> {
 pub(crate) fn read_file(path: &str) -> Result<String, RustractError> {
     let mut file = match File::open(path) {
         Ok(file) => file,
-        Err(err) => return Err(RustractError {
+        Err(err) => return Err(RustractError::Filesystem(GenericError {
             message: format!("failed to find file <{}>: {}", path, err.to_string())
-        })
+        }))
     };
     let mut s = String::new();
     file.read_to_string(&mut s)?;

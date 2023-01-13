@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{error::RustractError, field::FieldDesign, filesystem::read_file, table::TableDesign, types::{DataType, IndexOf, IntoHashSet}};
+use crate::{error::{RustractError, GenericError}, field::FieldDesign, filesystem::read_file, table::TableDesign, types::{DataType, IndexOf, IntoHashSet}};
 
 /// A database schema struct that can be used for testing JSON.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -133,9 +133,9 @@ fn read_name(line: &str) -> Result<String, RustractError> {
         }
     }
 
-    Err(RustractError {
+    Err(RustractError::DB(GenericError {
         message: format!("no table name found in schema line: {}", line),
-    })
+    }))
 }
 
 /// Attempts to add the schema line's field data to the provided table.
@@ -149,14 +149,14 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
 
     // Creates a blank field from the line's field name
     if tokens.is_empty() {
-        return Err(RustractError {
+        return Err(RustractError::DB(GenericError {
             message: format!("line {} did not contain any field data.", line),
-        });
+        }));
     }
     if tokens[0].len() < 3 {
-        return Err(RustractError {
+        return Err(RustractError::DB(GenericError {
             message: format!("table field {} cannot have empty name, line: {}", tokens[0], line),
-        });
+        }));
     }
     let mut field = FieldDesign::new("temp");
 
@@ -169,17 +169,17 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
                 match table.field_mut(&unwrap_str(*val)?) {
                     Some(value) => value,
                     None => {
-                        return Err(RustractError {
+                        return Err(RustractError::DB(GenericError {
                             message: format!("corrupt primary key formation: {} does not exist in new table", *val)
-                        });
+                        }));
                     }
                 }.primary = true;
                 return Ok(());
             },
             None => {
-                return Err(RustractError {
+                return Err(RustractError::DB(GenericError {
                     message: String::from("primary key statement found, but end of line reached"),
-                });
+                }));
             }
         }
     }
@@ -202,9 +202,9 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
             field.datatype = DataType::String;
             let index = match tokens[1].next_index_of(")", 7) {
                 Some(val) => val,
-                None => return Err(RustractError {
+                None => return Err(RustractError::DB(GenericError {
                     message: format!("schema line {} has invalid characters in varchar", line),
-                })
+                }))
             };
             field.characters = Some(tokens[1][8..index].parse()?);
         } else if descriptor.starts_with("enum(") {
@@ -219,9 +219,9 @@ fn add_to_db(source: &str, table: &mut TableDesign) -> Result<(), RustractError>
         } else if descriptor.contains("json") {
             field.datatype = DataType::Json;
         } else {
-            return Err(RustractError {
+            return Err(RustractError::DB(GenericError {
                 message: format!("failed to read schema, {} is not a valid token", descriptor),
-            });
+            }));
         }
 
         // Sets whether the field is null 
@@ -241,17 +241,17 @@ fn unwrap_str(str: &str) -> Result<String, RustractError> {
             let pos_1 = str.index_of("`").unwrap();
             let pos_2 = str.next_index_of("`", pos_1+1);
             if pos_2.is_none() {
-                return Err(RustractError {
+                return Err(RustractError::DB(GenericError {
                     message: format!("string {} does not have two instances of `'s", str),
-                });
+                }));
             }
 
             // This is a string slice of a &str, the unwrap is safe due to the previous check
             Ok(str[pos_1+1..pos_2.unwrap()].to_string())
         },
-        false => Err(RustractError {
+        false => Err(RustractError::DB(GenericError {
             message: format!("string slice does not match the format `val`: {}", str),
-        })
+        }))
     }
 }
 
@@ -260,31 +260,31 @@ fn unwrap_parenthesis(line: &str) -> Result<String, RustractError> {
     // Get the start and end positions of the parenthesis
     let start = match line.index_of("(") {
         Some(index) => index + 1,
-        None => return Err(RustractError {
+        None => return Err(RustractError::DB(GenericError {
             message: format!(
                 "could not unwrap parenthesis, line {} had no start",
                 line
             )
-        })
+        }))
     };
     let end = match line.index_of(")") {
         Some(index) => index,
-        None => return Err(RustractError {
+        None => return Err(RustractError::DB(GenericError {
             message: format!(
                 "could not unwrap parenthesis, line {} had no end",
                 line
             )
-        })
+        }))
     };
 
     // Catch )( errors
     if start > end || start >= line.len() {
-        return Err(RustractError {
+        return Err(RustractError::DB(GenericError {
             message: format!(
                 "could not unwrap parenthesis, line {} has invalid parenthesis format",
                 line
             )
-        });
+        }));
     }
 
     Ok(line.to_ascii_lowercase()[start..end].to_string())

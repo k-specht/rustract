@@ -47,7 +47,7 @@ mod test {
         let error = init("", false);
         match error {
             Ok(_) => panic!("test failed, init function did not produce errors"),
-            Err(e) => assert_eq!(e.message, "failed to find file <>: No such file or directory (os error 2)"),
+            Err(e) => assert_eq!(e.message(), "failed to find file <>: No such file or directory (os error 2)".to_string()),
         };
     }
 

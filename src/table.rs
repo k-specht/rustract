@@ -2,7 +2,7 @@ use std::collections::{BTreeMap,HashSet};
 use std::fmt::{Display, Formatter};
 use serde_json::Value;
 use serde::{Serialize,Deserialize};
-use crate::error::RustractError;
+use crate::error::{RustractError, GenericError};
 use crate::field::FieldDesign;
 use crate::field::enum_name;
 use crate::types::capitalize;
@@ -49,13 +49,13 @@ impl TableDesign {
 
             // If a required field is missing in the request JSON, decline it
             if !matched && field_design.required && (!field_design.generated || !input) {
-                return Err(RustractError {
+                return Err(RustractError::Table(GenericError {
                     message: format!(
                         "the {} field is required in {}, but was not included in the request",
                         field_design.field_design_title,
                         self.table_design_title
                     ),
-                });
+                }));
             }
         }
         Ok(())
@@ -173,9 +173,9 @@ impl TableDesign {
                         output += &field.export_type(&self.table_design_title)?;
                     }
                 } else {
-                    return Err(RustractError {
+                    return Err(RustractError::Table(GenericError  {
                         message: format!("field {} does not have an associated enum set", &field.field_design_title)
-                    });
+                    }));
                 }
             }
         }

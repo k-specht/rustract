@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use serde::{Serialize,Deserialize};
-use crate::error::RustractError;
+use crate::error::{RustractError, GenericError};
 
 /// Holds configuration info for the library.
 #[derive(Deserialize, Serialize, Debug)]
@@ -299,9 +299,9 @@ impl IntoHashSet for Vec<String> {
 
 pub(crate) fn capitalize(string: &str) -> Result<String, RustractError> {
     return if string.is_empty() {
-        Err(RustractError {
+        Err(RustractError::Generic(GenericError {
             message: "cannot capitalize an empty string".to_string(),
-        })
+        }))
     } else {
         Ok(format!("{}{}", &string[0..1].to_uppercase(), &string[1..string.len()]))
     }

@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use regex::Regex;
 use serde_json::{Map, Value};
 use serde::{Serialize,Deserialize};
-use crate::error::RustractError;
+use crate::error::{RustractError, GenericError};
 use crate::types::{DataType, DataTypeValue, HasBytes, HasLength, capitalize};
 
 /// Describes a database table field's design.
@@ -78,14 +78,14 @@ impl FieldDesign {
                 }
                 if let Some(bytes) = self.bytes {
                     if byte_string.len() > bytes as usize {
-                        return Err(RustractError {
+                        return Err(RustractError::Field(GenericError {
                             message: format!(
                                 "bytestring {} is {} bytes long, but max size is {} bytes",
                                 self.field_design_title,
                                 byte_string.len(),
                                 bytes
                             ),
-                        });
+                        }));
                     }
                 }
                 Ok(DataTypeValue::ByteString(byte_string))
@@ -160,14 +160,14 @@ impl FieldDesign {
                 let json_bit = self.test_type(json.as_u64())?;
                 let size = crate::types::digits(&json_bit);
                 if size > 1 {
-                    return Err(RustractError {
+                    return Err(RustractError::Field(GenericError {
                         message: format!(
                             "expected {} to be a bit, but size was {}, number: \"{}\"",
                             self.field_design_title,
                             size,
                             json_bit
                         ),
-                    });
+                    }));
                 }
                 Ok(DataTypeValue::Bit(self.downsize::<u8, u64>(json_bit)?))
             },
@@ -186,19 +186,19 @@ impl FieldDesign {
                     if (json_enum as usize) < list.len() {
                         Ok(DataTypeValue::Enum(json_enum))
                     } else {
-                        Err(RustractError {
+                        Err(RustractError::Field(GenericError {
                             message: format!(
                                 "expected {} to be within the enum range {}..{}",
                                 json_enum,
                                 0,
                                 list.len()
                             )
-                        })
+                        }))
                     }
                 } else {
-                    Err(RustractError {
+                    Err(RustractError::Field(GenericError {
                         message: "internal error, enum field has no enum attached".to_string()
-                    })
+                    }))
                 }
             },
             DataType::Set => {
@@ -207,17 +207,17 @@ impl FieldDesign {
                     if set.contains(&json_string) {
                         Ok(DataTypeValue::Set(json_string))
                     } else {
-                        Err(RustractError {
+                        Err(RustractError::Field(GenericError {
                             message: format!(
                                 "value {} is not an element of this set",
                                 json_string
                             )
-                        })
+                        }))
                     }
                 } else {
-                    Err(RustractError {
+                    Err(RustractError::Field(GenericError {
                         message: "internal error, set field has no set attached".to_string()
-                    })
+                    }))
                 }
             }
         }
@@ -246,14 +246,14 @@ impl FieldDesign {
                     output += "\n";
                 }
             } else {
-                return Err(RustractError {
+                return Err(RustractError::Field(GenericError {
                     message: format!("field {} does not have an associated enum set", &self.field_design_title)
-                });
+                }));
             }
         } else {
-            return Err(RustractError {
+            return Err(RustractError::Field(GenericError {
                 message: format!("field {} is not an enum, other types are invalid here for now", &self.field_design_title)
-            });
+            }));
         }
 
         output += "}\n";
@@ -264,13 +264,13 @@ impl FieldDesign {
     fn test_type<T>(&self, value: Option<T>) -> Result<T, RustractError> {
         match value {
             Some(val) => Ok(val),
-            None => Err(RustractError {
+            None => Err(RustractError::Field(GenericError {
                 message: format!(
                     "field {} is not of type {} (JSON cast failed)",
                     self.field_design_title,
                     self.datatype
                 ),
-            }),
+            })),
         }
     }
 
@@ -280,14 +280,14 @@ impl FieldDesign {
     {
         if let Some(max) = self.characters {
             match value.length() > max {
-                true => return Err(RustractError {
+                true => return Err(RustractError::Field(GenericError {
                     message: format!(
                         "field {} is over the size limit of {} (size: {})",
                         self.field_design_title,
                         max,
                         value.length()
                     ),
-                }),
+                })),
                 false => return Ok(())
             }
         }
@@ -299,14 +299,14 @@ impl FieldDesign {
     where T: HasBytes
     {
         if self.bytes.is_some() && value.byte_length() > self.bytes.unwrap() {
-            return Err(RustractError {
+            return Err(RustractError::Field(GenericError {
                 message: format!(
                     "field {} is over the byte limit of {} (bytes: {}).",
                     self.field_design_title,
                     self.bytes.unwrap(),
                     value.byte_length()
                 ),
-            })
+            }))
         }
         Ok(())
     }
@@ -317,13 +317,13 @@ impl FieldDesign {
     {
         match value.try_into() {
             Ok(val) => Ok(val),
-            Err(_) => Err(RustractError {
+            Err(_) => Err(RustractError::Field(GenericError {
                 message: format!(
                     "field {} is over the byte limit for type {}",
                     self.field_design_title,
                     self.datatype
                 ),
-            }),
+            })),
         }
     }
 
@@ -336,13 +336,13 @@ impl FieldDesign {
             let regex = Regex::new(val)?;
 
             if !regex.is_match(value.as_ref()) {
-                return Err(RustractError {
+                return Err(RustractError::Field(GenericError {
                     message: format!(
                         "field {} failed to match the regex restriction of {}",
                         self.field_design_title,
                         regex.to_string()
                     ),
-                });
+                }));
             }
         }
 
