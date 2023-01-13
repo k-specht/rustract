@@ -63,34 +63,6 @@ pub enum DataType {
     Set
 }
 
-/// A Datatype that contains a wrapped version of its enum.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
-pub enum DataTypeValue {
-    // String
-    String(String),
-    ByteString(Vec<u8>),
-    Json(serde_json::Map<String, serde_json::Value>),
-    
-    // Integer
-    Signed64(i64),
-    Unsigned64(u64),
-    Signed32(i32),
-    Unsigned32(u32),
-    Signed16(i16),
-    Unsigned16(u16),
-
-    // Decimal
-    Float64(f64),
-    Float32(f32),
-
-    // Other
-    Boolean(bool),
-    Bit(u8),
-    Byte(u8),
-    Enum(u32),
-    Set(String)
-}
-
 impl DataType {
     pub fn typescript(&self) -> String {
         match self {
@@ -133,6 +105,57 @@ impl Display for DataType {
             DataType::Byte => "Byte",
             DataType::Enum => "Enum",
             DataType::Set => "Set"
+        })
+    }
+}
+
+/// A Datatype that contains a wrapped version of its enum.
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+pub enum DataTypeValue {
+    // String
+    String(String),
+    ByteString(Vec<u8>),
+    Json(serde_json::Map<String, serde_json::Value>),
+    
+    // Integer
+    Signed64(i64),
+    Unsigned64(u64),
+    Signed32(i32),
+    Unsigned32(u32),
+    Signed16(i16),
+    Unsigned16(u16),
+
+    // Decimal
+    Float64(f64),
+    Float32(f32),
+
+    // Other
+    Boolean(bool),
+    Bit(u8),
+    Byte(u8),
+    Enum(u32),
+    Set(String)
+}
+
+impl Display for DataTypeValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            DataTypeValue::String(v) => v.to_string(),
+            DataTypeValue::ByteString(_) => "Byte String".to_string(),
+            DataTypeValue::Json(_) => "JSON".to_string(),
+            DataTypeValue::Signed64(v) => v.to_string(),
+            DataTypeValue::Unsigned64(v) => v.to_string(),
+            DataTypeValue::Signed32(v) => v.to_string(),
+            DataTypeValue::Unsigned32(v) => v.to_string(),
+            DataTypeValue::Signed16(v) => v.to_string(),
+            DataTypeValue::Unsigned16(v) => v.to_string(),
+            DataTypeValue::Float64(v) => v.to_string(),
+            DataTypeValue::Float32(v) => v.to_string(),
+            DataTypeValue::Boolean(v) => v.to_string(),
+            DataTypeValue::Bit(v) => v.to_string(),
+            DataTypeValue::Byte(v) => v.to_string(),
+            DataTypeValue::Enum(v) => v.to_string(),
+            DataTypeValue::Set(v) => v.to_string(),
         })
     }
 }
